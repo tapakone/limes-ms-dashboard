@@ -26,7 +26,9 @@ function riskColor(r) {
 // ===== main =====
 const prices = generatePrices();
 const s = slope(prices);
-const forecast = prices.at(-1) + s * 0.8;
+const last = prices[prices.length - 1];  
+const forecast = last + s * 0.8;
+}
 
 // ===== chart =====
 new Chart(document.getElementById("priceChart"), {
