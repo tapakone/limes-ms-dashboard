@@ -14,6 +14,12 @@ h1 {
   background:#14151c;
   padding:16px;
   border-radius:12px;
+  height:360px;
+}
+
+canvas {
+  width:100% !important;
+  height:100% !important;
 }
 
 .risk-panel {
