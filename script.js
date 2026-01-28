@@ -48,11 +48,12 @@ new Chart(document.getElementById("priceChart"), {
     ]
   },
   options: {
-    plugins:{ legend:{ display:false }},
-    scales:{
-      x:{ title:{ display:true, text:"Days (-30 → 0 → +1)" }}
-    }
+  maintainAspectRatio: false,
+  plugins:{ legend:{ display:false }},
+  scales:{
+    x:{ title:{ display:true, text:"Days (-30 → 0 → +1)" }}
   }
+}
 });
 
 // ===== risk scores =====
