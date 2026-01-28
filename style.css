@@ -1,6 +1,58 @@
+body {
+  background: #0e0e0e;
+  color: #f5c97a;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+}
 
-body { background:#111; color:#f5c97a; font-family:sans-serif; text-align:center; }
-button { margin:5px; padding:10px 20px; font-size:16px; }
-.buy { background:green; color:white; }
-.watch { background:orange; }
-.risk { background:red; color:white; }
+h1 {
+  margin: 10px;
+}
+
+.controls {
+  margin: 10px;
+}
+
+input {
+  padding: 6px;
+  font-size: 16px;
+}
+
+button {
+  padding: 6px 12px;
+  margin-left: 4px;
+  font-weight: bold;
+}
+
+.card {
+  border: 1px solid #333;
+  margin: 20px;
+  padding: 10px;
+  background: #141414;
+}
+
+.risk {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 10px;
+}
+
+.badge {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.buy { background: green; color: #fff; }
+.watch { background: orange; color: #000; }
+.high { background: red; color: #fff; }
+
+.blink {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
