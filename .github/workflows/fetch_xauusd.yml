@@ -1,9 +1,9 @@
 name: Fetch XAUUSD Data
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"   # ทุก 15 นาที
+  workflow_dispatch:
 
 jobs:
   fetch:
@@ -21,11 +21,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas
+          pip install pandas yfinance pytz
 
       - name: Fetch XAUUSD price
-        run: |
-          python fetch_xauusd.py
+        run: python fetch_xauusd.py
 
       - name: Commit and push data
         run: |
