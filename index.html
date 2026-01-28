@@ -2,37 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>LIMES MS – XAUUSD</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>LIMES MS — XAUUSD</title>
+
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<div class="card">
-  <h2>LIMES / Mark-S — XAUUSD</h2>
+<h1>LIMES / Mark-S — XAUUSD</h1>
 
+<div class="chart-box">
   <canvas id="priceChart"></canvas>
+</div>
 
-  <div class="panel">
-    <div class="row">
-      <span>D</span>
-      <div class="bar" id="risk-d"></div>
-      <span id="score-d"></span>
-    </div>
-    <div class="row">
-      <span>2hr</span>
-      <div class="bar" id="risk-2h"></div>
-      <span id="score-2h"></span>
-    </div>
-    <div class="row">
-      <span>1hr</span>
-      <div class="bar" id="risk-1h"></div>
-      <span id="score-1h"></span>
-    </div>
-
-    <div class="status" id="statusBox">WATCH</div>
+<div class="risk-panel">
+  <div class="risk-row">
+    <span>D</span>
+    <span id="score-d">–</span>
+  </div>
+  <div class="risk-row">
+    <span>2hr</span>
+    <span id="score-2h">–</span>
+  </div>
+  <div class="risk-row">
+    <span>1hr</span>
+    <span id="score-1h">–</span>
   </div>
 </div>
+
+<div id="statusBox" class="status">WATCH</div>
 
 <script src="script.js"></script>
 </body>
