@@ -1,8 +1,8 @@
 // ===== mock price data (-30 → 0) =====
 function generatePrices() {
-  let p = 2000;
+  let p = 5200;
   return Array.from({ length: 31 }, () => {
-    p += (Math.random() - 0.45) * 20;
+    p += (Math.random() - 0.45) * 25;
     return Number(p.toFixed(2));
   });
 }
@@ -19,16 +19,15 @@ function calcRisk(s) {
 
 function riskColor(r) {
   if (r < 2) return "#2ecc71";
-  if (r < 4) return "#f1c40f";
+  if (r < 4.5) return "#f1c40f";
   return "#e74c3c";
 }
 
 // ===== main =====
 const prices = generatePrices();
 const s = slope(prices);
-const last = prices[prices.length - 1];  
-const forecast = last + s * 0.8;
-}
+const last = prices[prices.length - 1];
+const forecast = last + s;
 
 // ===== chart =====
 new Chart(document.getElementById("priceChart"), {
@@ -39,39 +38,29 @@ new Chart(document.getElementById("priceChart"), {
       {
         data: prices,
         borderColor: "#f5c97a",
-        tension: 0.3
+        tension: 0.35
       },
       {
         data: [...prices.slice(0, -1), null, forecast],
         borderColor: "#00ff99",
-        borderDash: [6, 6]
+        borderDash: [6,6]
       }
     ]
   },
   options: {
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { title: { display: true, text: "Days (-30 → 0 → +1)" } }
+    plugins:{ legend:{ display:false }},
+    scales:{
+      x:{ title:{ display:true, text:"Days (-30 → 0 → +1)" }}
     }
   }
 });
 
 // ===== risk scores =====
-const riskD = calcRisk(s * 1);
-const risk2 = calcRisk(s * 0.7);
-const risk1 = calcRisk(s * 0.4);
+const riskD  = calcRisk(s * 1);
+const risk2  = calcRisk(s * 0.7);
+const risk1  = calcRisk(s * 0.4);
 
-function paint(id, score) {
-  const bar = document.getElementById(id);
-  bar.style.background = riskColor(score);
-  bar.style.width = `${score / 5 * 100}%`;
-}
-
-paint("risk-d", riskD);
-paint("risk-2h", risk2);
-paint("risk-1h", risk1);
-
-document.getElementById("score-d").textContent = riskD.toFixed(1);
+document.getElementById("score-d").textContent  = riskD.toFixed(1);
 document.getElementById("score-2h").textContent = risk2.toFixed(1);
 document.getElementById("score-1h").textContent = risk1.toFixed(1);
 
