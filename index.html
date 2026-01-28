@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LIMES MS — XAUUSD</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="title">
+        <div class="brand">LIMES MS — XAUUSD</div>
+        <div class="subtitle">Daily Close | Forecast vs Actual (+1D)</div>
+      </div>
+      <div class="stamp" id="stamp">--</div>
+    </header>
+
+    <main class="grid">
+      <section class="card chart-card">
+        <div class="chart-head">
+          <div class="legend">
+            <span class="dot price"></span> Price
+            <span class="dot mid"></span> Phase / Mid (MA3)
+            <span class="dot band"></span> Upper / Lower (±2σ)
+            <span class="dot today"></span> Today (0)
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="chart" height="360"></canvas>
+        </div>
+        <div class="bottom-row">
+          <div class="pill" id="dayRiskPill">▲ DAY RISK —</div>
+          <div class="cta" id="cta">WATCH</div>
+          <div class="cta danger" id="cta2">HIGH RISK</div>
+        </div>
+      </section>
+
+      <aside class="card side-card">
+        <div class="side-section">
+          <div class="side-label">STATE</div>
+          <div class="state-badge" id="stateBadge">--</div>
+
+          <div class="kv">
+            <div class="k">Day 0 ref (04:00 TH)</div><div class="v" id="day0">--</div>
+            <div class="k">Latest (15m)</div><div class="v" id="latest">--</div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="kv">
+            <div class="k">Forecast (+1D)</div><div class="v" id="pred">--</div>
+            <div class="k">Slope</div><div class="v" id="slope">--</div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="kv">
+            <div class="k">Human Risk Index</div><div class="v"><span id="humanRisk">--</span> / 5</div>
+          </div>
+
+          <div class="barwrap"><div class="bar" id="humanBar"><div class="fill"></div></div></div>
+        </div>
+
+        <div class="side-section">
+          <div class="risk-row">
+            <div class="risk-title">DAY RISK</div>
+            <div class="risk-right" id="dayState">--</div>
+          </div>
+          <div class="riskline">
+            <div class="riskcode">D</div>
+            <div class="riskbar"><div class="fill" id="dFill"></div></div>
+            <div class="riskscore" id="dScore">--</div>
+            <div class="arrow" id="dArrow">→</div>
+          </div>
+
+          <div class="riskline">
+            <div class="riskcode">2HR</div>
+            <div class="riskbar"><div class="fill" id="h2Fill"></div></div>
+            <div class="riskscore" id="h2Score">--</div>
+            <div class="arrow" id="h2Arrow">→</div>
+          </div>
+
+          <div class="riskline">
+            <div class="riskcode">1HR</div>
+            <div class="riskbar"><div class="fill" id="h1Fill"></div></div>
+            <div class="riskscore" id="h1Score">--</div>
+            <div class="arrow" id="h1Arrow">→</div>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button class="btn buy" id="btnBuy">BUY</button>
+          <button class="btn watch" id="btnWatch">WATCH</button>
+          <button class="btn risk" id="btnRisk">HIGH RISK</button>
+        </div>
+
+        <div class="note">
+          Data update: every 15 min (GitHub Actions) • Source: Yahoo Finance via yfinance
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
