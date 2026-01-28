@@ -1,107 +1,22 @@
-console.log("LIMES MS loaded");
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>LIMES MS — Dashboard</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
 
-// --- Demo data (แทนข้อมูลจริงก่อน) ---
-// ใช้ 40 จุด สมมติเป็นช่วง 40 วัน
-const labels = Array.from({ length: 40 }, (_, i) => `D-${39 - i}`);
+<h1>LIMES MS — XAUUSD / US Stocks</h1>
 
-// สร้างเส้นราคาแบบสุ่มนิดๆให้เห็นกราฟก่อน
-let price = [];
-let p = 5100;
-for (let i = 0; i < 40; i++) {
-  p += (Math.random() - 0.45) * 15;
-  price.push(Number(p.toFixed(2)));
-}
+<div class="controls">
+  <input id="symbolInput" placeholder="XAUUSD, AAPL, NVDA…" />
+  <button onclick="addSymbol()">Add</button>
+</div>
 
-// MA3
-function ma3(arr) {
-  return arr.map((_, i) => {
-    if (i < 2) return null;
-    return Number(((arr[i] + arr[i - 1] + arr[i - 2]) / 3).toFixed(2));
-  });
-}
-const mid = ma3(price);
+<div id="dashboard"></div>
 
-// std (rolling 40 แบบง่าย: ใช้ทั้งหน้าต่าง)
-function stdAll(arr) {
-  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-  const v =
-    arr.reduce((a, b) => a + (b - mean) * (b - mean), 0) / (arr.length - 1);
-  return Math.sqrt(v);
-}
-const sigma = stdAll(price);
-const upper = mid.map(v => (v == null ? null : Number((v + 2 * sigma).toFixed(2))));
-const lower = mid.map(v => (v == null ? null : Number((v - 2 * sigma).toFixed(2))));
-
-// --- Simple risk score (demo) ---
-const dayRisk = 3.5;
-const twoHrRisk = 3.1;
-const oneHrRisk = 4.2;
-
-function riskLabel(score) {
-  if (score >= 4.0) return "HIGH RISK";
-  if (score >= 3.0) return "WATCH";
-  return "BUY";
-}
-
-document.getElementById("status").textContent =
-  `D Risk: ${dayRisk.toFixed(1)}/5 | 2H Risk: ${twoHrRisk.toFixed(1)}/5 | 1H Risk: ${oneHrRisk.toFixed(1)}/5`;
-
-// --- Draw chart ---
-const ctx = document.getElementById("chart").getContext("2d");
-
-new Chart(ctx, {
-  type: "line",
-  data: {
-    labels,
-    datasets: [
-      {
-        label: "Price",
-        data: price,
-        borderWidth: 2,
-        tension: 0.25,
-      },
-      {
-        label: "Phase / Mid (MA3)",
-        data: mid,
-        borderWidth: 2,
-        borderDash: [6, 6],
-        tension: 0.25,
-      },
-      {
-        label: "Upper (+2σ)",
-        data: upper,
-        borderWidth: 1,
-        borderDash: [3, 3],
-        tension: 0.25,
-      },
-      {
-        label: "Lower (-2σ)",
-        data: lower,
-        borderWidth: 1,
-        borderDash: [3, 3],
-        tension: 0.25,
-      },
-    ],
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: {
-        labels: { color: "#ddd" },
-      },
-      title: {
-        display: false,
-      },
-    },
-    scales: {
-      x: {
-        ticks: { color: "#aaa" },
-        grid: { color: "rgba(255,255,255,0.08)" },
-      },
-      y: {
-        ticks: { color: "#aaa" },
-        grid: { color: "rgba(255,255,255,0.08)" },
-      },
-    },
-  },
-});
+<script src="./script.js"></script>
+</body>
+</html>
