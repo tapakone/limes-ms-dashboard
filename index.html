@@ -1,22 +1,39 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>LIMES MS — Dashboard</title>
-  <link rel="stylesheet" href="./style.css" />
+  <title>LIMES MS – XAUUSD</title>
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<h1>LIMES MS — XAUUSD / US Stocks</h1>
+<div class="card">
+  <h2>LIMES / Mark-S — XAUUSD</h2>
 
-<div class="controls">
-  <input id="symbolInput" placeholder="XAUUSD, AAPL, NVDA…" />
-  <button onclick="addSymbol()">Add</button>
+  <canvas id="priceChart"></canvas>
+
+  <div class="panel">
+    <div class="row">
+      <span>D</span>
+      <div class="bar" id="risk-d"></div>
+      <span id="score-d"></span>
+    </div>
+    <div class="row">
+      <span>2hr</span>
+      <div class="bar" id="risk-2h"></div>
+      <span id="score-2h"></span>
+    </div>
+    <div class="row">
+      <span>1hr</span>
+      <div class="bar" id="risk-1h"></div>
+      <span id="score-1h"></span>
+    </div>
+
+    <div class="status" id="statusBox">WATCH</div>
+  </div>
 </div>
 
-<div id="dashboard"></div>
-
-<script src="./script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
