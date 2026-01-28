@@ -3,10 +3,7 @@ name: Fetch XAUUSD Data
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
-
-permissions:
-  contents: write
+    - cron: "*/15 * * * *"   # ทุก 15 นาที (UTC)
 
 jobs:
   fetch:
@@ -23,16 +20,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install yfinance pandas
+          python -m pip install --upgrade pip
+          pip install yfinance pandas pytz
 
-      - name: Run fetch script
+      - name: Fetch XAUUSD price
         run: |
           python fetch_xauusd.py
 
-      - name: Commit data
+      - name: Commit and push data
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add data/xauusd.json
-          git commit -m "Update XAUUSD data" || echo "No changes"
+          git add data/*.json
+          git commit -m "auto: update XAUUSD data" || echo "No changes"
           git push
