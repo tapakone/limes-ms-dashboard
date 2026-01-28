@@ -1,58 +1,56 @@
 body {
-  background: #0e0e0e;
-  color: #f5c97a;
+  background: #0e0e11;
+  color: #eee;
   font-family: system-ui, sans-serif;
-  text-align: center;
-}
-
-h1 {
-  margin: 10px;
-}
-
-.controls {
-  margin: 10px;
-}
-
-input {
-  padding: 6px;
-  font-size: 16px;
-}
-
-button {
-  padding: 6px 12px;
-  margin-left: 4px;
-  font-weight: bold;
 }
 
 .card {
-  border: 1px solid #333;
-  margin: 20px;
-  padding: 10px;
-  background: #141414;
+  max-width: 1000px;
+  margin: 20px auto;
+  padding: 16px;
+  background: #15151c;
+  border-radius: 12px;
 }
 
-.risk {
+canvas {
+  width: 100% !important;
+  height: 360px !important;
+}
+
+.panel {
+  margin-top: 16px;
+}
+
+.row {
   display: flex;
-  justify-content: space-around;
-  margin-top: 10px;
+  align-items: center;
+  margin: 6px 0;
 }
 
-.badge {
-  padding: 6px 12px;
-  border-radius: 4px;
+.row span {
+  width: 40px;
+}
+
+.bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 6px;
+  margin: 0 8px;
+  background: #555;
+}
+
+.status {
+  margin-top: 12px;
+  padding: 10px;
+  text-align: center;
   font-weight: bold;
+  border-radius: 8px;
 }
-
-.buy { background: green; color: #fff; }
-.watch { background: orange; color: #000; }
-.high { background: red; color: #fff; }
 
 .blink {
   animation: blink 1s infinite;
 }
 
 @keyframes blink {
-  0% { opacity: 1; }
   50% { opacity: 0.3; }
-  100% { opacity: 1; }
 }
