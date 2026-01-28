@@ -1,0 +1,6 @@
+
+body { background:#111; color:#f5c97a; font-family:sans-serif; text-align:center; }
+button { margin:5px; padding:10px 20px; font-size:16px; }
+.buy { background:green; color:white; }
+.watch { background:orange; }
+.risk { background:red; color:white; }
