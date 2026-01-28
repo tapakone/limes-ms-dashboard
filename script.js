@@ -1,116 +1,90 @@
-const dashboard = document.getElementById("dashboard");
-
-// =====================
-// Utilities
-// =====================
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
-}
-
-// =====================
-// Risk Engine (LIMES MS)
-// =====================
-function calcRisk(slope, volatility) {
-  let score = 2.5 + slope * 0.1 + volatility * 0.5;
-  return clamp(Number(score.toFixed(1)), 0, 5);
-}
-
-function riskClass(score) {
-  if (score < 2.5) return "buy";
-  if (score < 4.0) return "watch";
-  return "high";
-}
-
-// =====================
-// Demo / Placeholder Data Fetch
-// (แทน API จริงตอนนี้)
-// =====================
-async function fetchPriceSeries(symbol, points) {
-  let price = symbol === "XAUUSD" ? 2350 : 180;
-  let arr = [];
-
-  for (let i = 0; i < points; i++) {
-    price += (Math.random() - 0.45) * (symbol === "XAUUSD" ? 6 : 2);
-    arr.push(Number(price.toFixed(2)));
-  }
-  return arr;
-}
-
-// =====================
-// Render Card
-// =====================
-async function renderSymbol(symbol) {
-  const card = document.createElement("div");
-  card.className = "card";
-  card.innerHTML = `<h2>${symbol}</h2><canvas></canvas>`;
-  dashboard.appendChild(card);
-
-  const prices = await fetchPriceSeries(symbol, 40);
-
-  // slope & volatility
-  const slope = prices.at(-1) - prices.at(-5);
-  const vol =
-    prices.reduce((a, b) => a + Math.abs(b - prices[0]), 0) / prices.length / 10;
-
-  const riskD = calcRisk(slope * 0.6, vol);
-  const risk2H = calcRisk(slope * 0.8, vol);
-  const risk1H = calcRisk(slope, vol);
-
-  const maxRisk = Math.max(riskD, risk2H, risk1H);
-
-  const state =
-    maxRisk >= 4.5
-      ? "HIGH RISK"
-      : maxRisk < 2.5
-      ? "BUY"
-      : "WATCH";
-
-  const badgeClass = riskClass(maxRisk);
-  const blink = maxRisk >= 4.5 ? "blink" : "";
-
-  const riskBox = document.createElement("div");
-  riskBox.className = "risk";
-  riskBox.innerHTML = `
-    <div>D: ${riskD}</div>
-    <div>2H: ${risk2H}</div>
-    <div>1H: ${risk1H}</div>
-    <div class="badge ${badgeClass} ${blink}">${state}</div>
-  `;
-  card.appendChild(riskBox);
-
-  // Chart
-  const ctx = card.querySelector("canvas");
-  new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: prices.map((_, i) => i - prices.length + 1),
-      datasets: [
-        {
-          data: prices,
-          borderColor: "#f5c97a",
-          tension: 0.3
-        }
-      ]
-    },
-    options: {
-      plugins: { legend: { display: false } },
-      scales: { x: { display: false } }
-    }
+// ===== mock price data (-30 → 0) =====
+function generatePrices() {
+  let p = 2000;
+  return Array.from({ length: 31 }, () => {
+    p += (Math.random() - 0.45) * 20;
+    return Number(p.toFixed(2));
   });
 }
 
-// =====================
-// Init
-// =====================
-async function init() {
-  const res = await fetch("./data/symbols.json");
-  const json = await res.json();
-  json.symbols.forEach(renderSymbol);
+// ===== slope =====
+function slope(arr) {
+  return arr[arr.length - 1] - arr[arr.length - 2];
 }
 
-function addSymbol() {
-  const v = document.getElementById("symbolInput").value.trim().toUpperCase();
-  if (v) renderSymbol(v);
+// ===== risk mapping =====
+function calcRisk(s) {
+  return Math.min(5, Math.abs(s) / 5);
 }
 
-init();
+function riskColor(r) {
+  if (r < 2) return "#2ecc71";
+  if (r < 4) return "#f1c40f";
+  return "#e74c3c";
+}
+
+// ===== main =====
+const prices = generatePrices();
+const s = slope(prices);
+const forecast = prices.at(-1) + s * 0.8;
+
+// ===== chart =====
+new Chart(document.getElementById("priceChart"), {
+  type: "line",
+  data: {
+    labels: prices.map((_, i) => i - 30),
+    datasets: [
+      {
+        data: prices,
+        borderColor: "#f5c97a",
+        tension: 0.3
+      },
+      {
+        data: [...prices.slice(0, -1), null, forecast],
+        borderColor: "#00ff99",
+        borderDash: [6, 6]
+      }
+    ]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { title: { display: true, text: "Days (-30 → 0 → +1)" } }
+    }
+  }
+});
+
+// ===== risk scores =====
+const riskD = calcRisk(s * 1);
+const risk2 = calcRisk(s * 0.7);
+const risk1 = calcRisk(s * 0.4);
+
+function paint(id, score) {
+  const bar = document.getElementById(id);
+  bar.style.background = riskColor(score);
+  bar.style.width = `${score / 5 * 100}%`;
+}
+
+paint("risk-d", riskD);
+paint("risk-2h", risk2);
+paint("risk-1h", risk1);
+
+document.getElementById("score-d").textContent = riskD.toFixed(1);
+document.getElementById("score-2h").textContent = risk2.toFixed(1);
+document.getElementById("score-1h").textContent = risk1.toFixed(1);
+
+// ===== status =====
+const maxRisk = Math.max(riskD, risk2, risk1);
+const status = document.getElementById("statusBox");
+
+if (maxRisk < 2) {
+  status.textContent = "BUY";
+  status.style.background = "#2ecc71";
+} else if (maxRisk < 4.5) {
+  status.textContent = "WATCH";
+  status.style.background = "#f1c40f";
+} else {
+  status.textContent = "HIGH RISK";
+  status.style.background = "#e74c3c";
+  status.classList.add("blink");
+}
