@@ -1,33 +1,35 @@
 import yfinance as yf
 import pandas as pd
-import json
 from datetime import datetime
 import pytz
+import json
 import os
 
-# ensure data dir exists
-os.makedirs("data", exist_ok=True)
+tz = pytz.timezone("Asia/Bangkok")
 
-symbol = "XAUUSD=X"
-ticker = yf.Ticker(symbol)
+ticker = yf.Ticker("XAUUSD=X")
+df = ticker.history(period="2d", interval="15m")
 
-# ดึงข้อมูลย้อนหลัง 2 วัน (พอสำหรับ D / intraday)
-hist = ticker.history(period="2d", interval="15m")
+df = df.reset_index()
+df["Datetime"] = df["Datetime"].dt.tz_convert(tz)
 
-prices = hist["Close"].dropna().tolist()
-timestamps = [str(ts) for ts in hist.index]
+latest = df.iloc[-1]
 
-now_th = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
-
-data = {
+output = {
     "symbol": "XAUUSD",
-    "updated_th": now_th.strftime("%Y-%m-%d %H:%M:%S"),
-    "prices": prices,
-    "timestamps": timestamps,
-    "latest": prices[-1] if prices else None
+    "source": "Yahoo Finance",
+    "updated_th": latest["Datetime"].strftime("%Y-%m-%d %H:%M"),
+    "price": round(float(latest["Close"]), 2),
+    "data": [
+        {
+            "time": row["Datetime"].strftime("%Y-%m-%d %H:%M"),
+            "price": round(float(row["Close"]), 2)
+        }
+        for _, row in df.iterrows()
+    ]
 }
 
-with open("data/xauusd.json", "w") as f:
-    json.dump(data, f, indent=2)
+os.makedirs("data", exist_ok=True)
 
-print("Saved data/xauusd.json")
+with open("data/xauusd.json", "w") as f:
+    json.dump(output, f, indent=2)
