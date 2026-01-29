@@ -5,9 +5,6 @@ on:
   schedule:
     - cron: "*/15 * * * *"
 
-permissions:
-  contents: write
-
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -24,11 +21,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas pytz
+          pip install yfinance pandas numpy pytz
 
       - name: Fetch XAUUSD price
-        run: |
-          python fetch_xauusd.py
+        run: python fetch_xauusd.py
 
       - name: Commit and push data
         run: |
