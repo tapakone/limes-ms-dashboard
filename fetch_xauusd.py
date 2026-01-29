@@ -1,9 +1,10 @@
 import yfinance as yf
 import json
-from datetime import datetime, timezone
+from datetime import timezone
+import os
 
-DATA_15M = "data/xauusd_15m.json"
-DATA_DAILY = "data/xauusd_daily.json"
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
 
 SYMBOL = "GC=F"  # Gold Futures (stable)
 
@@ -16,28 +17,28 @@ def fetch(interval, period):
     )
 
     if df.empty:
-        print(f"No data for {interval}")
-        return [], []
+        raise RuntimeError("No data returned from Yahoo Finance")
 
-    df = df.dropna()
+    # ใช้ values.tolist() เท่านั้น
+    timestamps = (
+        df.index
+        .tz_localize(timezone.utc, nonexistent="shift_forward")
+        .tz_convert("Asia/Bangkok")
+        .strftime("%Y-%m-%d %H:%M")
+        .tolist()
+    )
 
-    timestamps = [
-        int(ts.to_pydatetime().replace(tzinfo=timezone.utc).timestamp() * 1000)
-        for ts in df.index
-    ]
-
-    close = df["Close"].astype(float).to_list()
-
+    close = df["Close"].astype(float).values.tolist()
     return timestamps, close
 
 
-def save(path, timestamps, close):
-    with open(path, "w") as f:
+def save_json(filename, timestamps, close):
+    with open(os.path.join(DATA_DIR, filename), "w") as f:
         json.dump(
             {
+                "symbol": SYMBOL,
                 "timestamps": timestamps,
-                "close": close,
-                "updated_utc": datetime.utcnow().isoformat()
+                "close": close
             },
             f
         )
@@ -45,12 +46,10 @@ def save(path, timestamps, close):
 
 def main():
     t15, c15 = fetch("15m", "7d")
+    save_json("xauusd_15m.json", t15, c15)
+
     td, cd = fetch("1d", "6mo")
-
-    save(DATA_15M, t15, c15)
-    save(DATA_DAILY, td, cd)
-
-    print("XAUUSD data updated successfully")
+    save_json("xauusd_daily.json", td, cd)
 
 
 if __name__ == "__main__":
