@@ -1,4 +1,4 @@
-ลname: Fetch XAUUSD Data
+name: Fetch XAUUSD Data
 
 on:
   schedule:
