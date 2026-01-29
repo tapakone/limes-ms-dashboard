@@ -3,120 +3,82 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LIMES MS — Dashboard</title>
+  <title>LIMES MS — Demo (Spec v1)</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="wrap">
-    <header class="topbar">
-      <div class="title">
-        <div class="brand" id="brandTitle">LIMES MS — XAUUSD</div>
-        <div class="subtitle">Daily Close | Forecast vs Actual (+1D)</div>
-
-        <!-- ✅ AUTOCOMPLETE BAR -->
-        <div class="assetbar" style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <div style="opacity:.75; font-size:12px;">Asset</div>
-          <input
-            id="assetInput"
-            list="assetList"
-            placeholder="Type ticker e.g. XAUUSD, NVDA, GOOGL, BTC"
-            style="background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
-                   color:#e9e2d4; padding:10px 12px; border-radius:10px; min-width:260px; outline:none;"
-          />
-          <datalist id="assetList"></datalist>
-
-          <div id="assetHint" style="opacity:.65; font-size:12px;"></div>
-        </div>
+    <header class="top">
+      <div class="brand">
+        <div class="title">LIMES MS — DEMO</div>
+        <div class="subtitle">Slope Risk (±%) + Position Boost (±2σ)</div>
       </div>
 
-      <div class="stamp" id="stamp">--</div>
+      <div class="picker">
+        <label for="assetInput">Asset</label>
+        <input id="assetInput" list="assetList" placeholder="พิมพ์: XAUUSD, NVDA, TSLA..." autocomplete="off" />
+        <datalist id="assetList"></datalist>
+        <button id="loadBtn">Load</button>
+      </div>
     </header>
 
     <main class="grid">
-      <section class="card chart-card">
-        <div class="chart-head">
+      <section class="card chart">
+        <div class="cardHead">
           <div class="legend">
             <span class="dot price"></span> Price
-            <span class="dot mid"></span> Phase / Mid (MA3)
-            <span class="dot band"></span> Upper / Lower (±2σ)
-            <span class="dot today"></span> Today (0)
+            <span class="dot mid"></span> Mid (MA3)
+            <span class="dot band"></span> Upper/Lower (±2σ)
           </div>
+          <div id="statusLine" class="statusLine">Ready</div>
         </div>
 
-        <div class="canvas-wrap">
-          <canvas id="chart" height="360"></canvas>
-        </div>
+        <canvas id="c" width="1100" height="520"></canvas>
 
-        <div class="bottom-row">
-          <div class="pill" id="dayRiskPill">▲ DAY RISK —</div>
-          <div class="cta" id="cta">WATCH</div>
-          <div class="cta danger" id="cta2">HIGH RISK</div>
+        <div class="footerBar">
+          <div class="pill" id="riskPill">DAY RISK —</div>
+          <div class="bigBadge" id="stateBadge">—</div>
         </div>
       </section>
 
-      <aside class="card side-card">
-        <div class="side-section">
-          <div class="side-label">STATE</div>
-          <div class="state-badge" id="stateBadge">--</div>
-
-          <div class="kv">
-            <div class="k">Day 0 ref (04:00 TH)</div><div class="v" id="day0">--</div>
-            <div class="k">Latest (15m)</div><div class="v" id="latest">--</div>
-          </div>
-
-          <div class="hr"></div>
-
-          <div class="kv">
-            <div class="k">Forecast (+1D)</div><div class="v" id="pred">--</div>
-            <div class="k">Slope</div><div class="v" id="slope">--</div>
-          </div>
-
-          <div class="hr"></div>
-
-          <div class="kv">
-            <div class="k">Human Risk Index</div><div class="v"><span id="humanRisk">--</span> / 5</div>
-          </div>
-
-          <div class="barwrap"><div class="bar" id="humanBar"><div class="fill"></div></div></div>
+      <aside class="card side">
+        <h3>STATE</h3>
+        <div class="stateBox" id="stateBox">
+          <div class="stateBig" id="stateBig">—</div>
         </div>
 
-        <div class="side-section">
-          <div class="risk-row">
-            <div class="risk-title">DAY RISK</div>
-            <div class="risk-right" id="dayState">--</div>
-          </div>
+        <div class="kv">
+          <div class="k">Latest (15m)</div>
+          <div class="v" id="latest15">—</div>
 
-          <div class="riskline">
-            <div class="riskcode">D</div>
-            <div class="riskbar"><div class="fill" id="dFill"></div></div>
-            <div class="riskscore" id="dScore">--</div>
-            <div class="arrow" id="dArrow">→</div>
-          </div>
+          <div class="k">Slope % (Day)</div>
+          <div class="v" id="slopeDay">—</div>
 
-          <div class="riskline">
-            <div class="riskcode">2HR</div>
-            <div class="riskbar"><div class="fill" id="h2Fill"></div></div>
-            <div class="riskscore" id="h2Score">--</div>
-            <div class="arrow" id="h2Arrow">→</div>
-          </div>
+          <div class="k">Risk (0–5)</div>
+          <div class="v" id="riskScore">—</div>
+        </div>
 
-          <div class="riskline">
-            <div class="riskcode">1HR</div>
-            <div class="riskbar"><div class="fill" id="h1Fill"></div></div>
-            <div class="riskscore" id="h1Score">--</div>
-            <div class="arrow" id="h1Arrow">→</div>
+        <h3 style="margin-top:16px;">DAY RISK</h3>
+        <div class="bars">
+          <div class="barRow">
+            <div class="lab">D</div>
+            <div class="bar"><div class="fill" id="barD"></div></div>
+            <div class="val" id="valD">—</div>
+          </div>
+          <div class="barRow">
+            <div class="lab">2HR</div>
+            <div class="bar"><div class="fill" id="bar2h"></div></div>
+            <div class="val" id="val2h">—</div>
+          </div>
+          <div class="barRow">
+            <div class="lab">1HR</div>
+            <div class="bar"><div class="fill" id="bar1h"></div></div>
+            <div class="val" id="val1h">—</div>
           </div>
         </div>
 
-        <div class="buttons">
-          <button class="btn buy" id="btnBuy">BUY</button>
-          <button class="btn watch" id="btnWatch">WATCH</button>
-          <button class="btn risk" id="btnRisk">HIGH RISK</button>
-        </div>
-
-        <div class="note">
-          Data update: every 15 min (GitHub Actions) • Source: Yahoo Finance via yfinance
+        <div class="hint">
+          Flash RED เมื่อ Risk ≥ 4.5 (ชันมากทั้ง +/− หรือใกล้ปลายกรอบ ±2σ)
         </div>
       </aside>
     </main>
