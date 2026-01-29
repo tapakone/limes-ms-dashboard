@@ -1,0 +1,23 @@
+[
+  { "id": "xauusd", "label": "Gold (Spot/Future)", "tickers": ["XAUUSD=X", "GC=F"] },
+
+  { "id": "agnc", "label": "AGNC", "tickers": ["AGNC"] },
+  { "id": "jepq", "label": "JEPQ", "tickers": ["JEPQ"] },
+  { "id": "nvda", "label": "NVDA", "tickers": ["NVDA"] },
+  { "id": "schd", "label": "SCHD", "tickers": ["SCHD"] },
+  { "id": "tsla", "label": "TSLA", "tickers": ["TSLA"] },
+  { "id": "googl", "label": "GOOGL", "tickers": ["GOOGL"] },
+  { "id": "amd", "label": "AMD", "tickers": ["AMD"] },
+  { "id": "jnj", "label": "JNJ", "tickers": ["JNJ"] },
+  { "id": "voo", "label": "VOO", "tickers": ["VOO"] },
+  { "id": "qqq", "label": "QQQ", "tickers": ["QQQ"] },
+
+  { "id": "mags", "label": "MAG7 ETF (MAGS)", "tickers": ["MAGS"] },
+
+  { "id": "btc", "label": "BTC-USD", "tickers": ["BTC-USD"] },
+  { "id": "eth", "label": "ETH-USD", "tickers": ["ETH-USD"] },
+
+  { "id": "cpall", "label": "CPALL.BK", "tickers": ["CPALL.BK"] },
+  { "id": "ptt", "label": "PTT.BK", "tickers": ["PTT.BK"] },
+  { "id": "aot", "label": "AOT.BK", "tickers": ["AOT.BK"] }
+]
