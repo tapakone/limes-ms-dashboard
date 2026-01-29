@@ -1,69 +1,63 @@
-import json
-import time
 import yfinance as yf
+import pandas as pd
+import json
+from datetime import timezone
 
 DATA_15M = "data/xauusd_15m.json"
 DATA_DAILY = "data/xauusd_daily.json"
 
-# ลองหลายตัว เผื่อบางช่วง Yahoo ตอบไม่ครบ
-TICKERS = [
-    "GC=F",      # Gold Futures (แนะนำ)
-    "XAUUSD=X",  # Gold spot (บางช่วงอาจ 404)
-    "XAU=X",     # Gold spot alt (บางบัญชีมี/ไม่มี)
-]
+SYMBOL = "GC=F"  # Gold Futures (stable, Yahoo-supported)
 
-def download_one(ticker: str, interval: str, period: str):
+def fetch(interval, period):
     df = yf.download(
-        ticker,
+        SYMBOL,
         interval=interval,
         period=period,
-        progress=False,
-        auto_adjust=True,
-        threads=False,
+        progress=False
     )
-    if df is None or df.empty:
-        return None
-    if "Close" not in df.columns:
-        return None
-    # ทำให้ index เป็น string ได้แน่ ๆ (ตัด timezone ออก)
-    idx = df.index
-    try:
-        idx = idx.tz_localize(None)
-    except Exception:
-        pass
 
-    ts = [str(x) for x in idx.to_pydatetime()]
-    close = [float(x) for x in df["Close"].tolist()]
-    return ts, close
+    if df is None or df.empty or "Close" not in df:
+        print(f"[WARN] No data for {interval}")
+        return [], []
 
-def fetch_with_fallback(interval: str, period: str, retries: int = 3):
-    for attempt in range(1, retries + 1):
-        for tk in TICKERS:
-            try:
-                out = download_one(tk, interval, period)
-                if out is not None:
-                    print(f"OK: {tk} {interval} {period} -> {len(out[1])} rows")
-                    return out
-                else:
-                    print(f"EMPTY: {tk} {interval} {period}")
-            except Exception as e:
-                print(f"ERR: {tk} {interval} {period} -> {e}")
-        # backoff
-        time.sleep(2 * attempt)
-    return [], []
+    df = df.dropna()
 
-def save(path: str, ts, close):
+    times = [
+        int(ts.replace(tzinfo=timezone.utc).timestamp() * 1000)
+        for ts in df.index
+    ]
+    close = df["Close"].astype(float).tolist()
+
+    return times, close
+
+
+def save(path, times, close):
     with open(path, "w") as f:
-        json.dump({"timestamps": ts, "close": close}, f)
+        json.dump(
+            {
+                "timestamps": times,
+                "close": close
+            },
+            f
+        )
+
 
 def main():
-    ts15, c15 = fetch_with_fallback("15m", "5d", retries=3)
-    save(DATA_15M, ts15, c15)
+    t15, c15 = fetch("15m", "7d")
+    td, cd = fetch("1d", "6mo")
 
-    tsd, cd = fetch_with_fallback("1d", "6mo", retries=3)
-    save(DATA_DAILY, tsd, cd)
+    if len(c15) >= 2:
+        save(DATA_15M, t15, c15)
+        print(f"[OK] 15m saved ({len(c15)})")
+    else:
+        print("[SKIP] 15m insufficient data")
 
-    print("Saved:", len(c15), "15m bars,", len(cd), "daily bars")
+    if len(cd) >= 2:
+        save(DATA_DAILY, td, cd)
+        print(f"[OK] daily saved ({len(cd)})")
+    else:
+        print("[SKIP] daily insufficient data")
+
 
 if __name__ == "__main__":
     main()
