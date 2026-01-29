@@ -10,7 +10,6 @@ const TZ = "Asia/Bangkok";
 // ---------- helpers ----------
 function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 function fmt2(n){ return (Number.isFinite(n) ? n.toFixed(2) : "--"); }
-function toPct(n){ return (Number.isFinite(n) ? (n*100).toFixed(2) + "%" : "--"); }
 
 function riskColor(score){
   if(score >= 4.5) return "risk";
@@ -31,7 +30,7 @@ function arrowFromSlope(s){
 
 async function loadJSON(url){
   const r = await fetch(url, {cache:"no-store"});
-  if(!r.ok) throw new Error("Fetch failed: " + url);
+  if(!r.ok) throw new Error("Fetch failed: " + url + " (" + r.status + ")");
   return await r.json();
 }
 
@@ -62,7 +61,6 @@ function rollingStd(arr, win){
 
 // linear slope (per step)
 function slopeLast(arr, k){
-  // k points ending at last
   if(arr.length < k) return NaN;
   const y = arr.slice(arr.length-k);
   const x = [...Array(k)].map((_,i)=>i);
@@ -73,13 +71,12 @@ function slopeLast(arr, k){
     num += (x[i]-xm)*(y[i]-ym);
     den += (x[i]-xm)**2;
   }
-  return den===0 ? NaN : num/den; // per step
+  return den===0 ? NaN : num/den;
 }
 
 // map |z| to 0..5 risk
 function scoreFromZ(z){
   if(!Number.isFinite(z)) return 0;
-  // soft scaling: z=0 =>0.5, z=1=>2.0, z=2=>3.5, z=3=>4.4, z>=3.2 => ~4.6+
   const s = 0.5 + 1.1*Math.abs(z) + 0.25*(Math.abs(z)**1.3);
   return clamp(s, 0, 5);
 }
@@ -87,44 +84,75 @@ function scoreFromZ(z){
 // ---------- main ----------
 let chart;
 
+function setWaiting(msg){
+  const stamp = document.getElementById("stamp");
+  stamp.textContent = msg;
+
+  // Clear numeric fields safely
+  ["day0","latest","pred","slope","humanRisk"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = "--";
+  });
+
+  // State badge
+  const stateBadge = document.getElementById("stateBadge");
+  if(stateBadge){
+    stateBadge.classList.remove("buy","watch","risk","flash");
+    stateBadge.classList.add("watch");
+    stateBadge.textContent = "WAITING";
+  }
+
+  const dayState = document.getElementById("dayState");
+  if(dayState) dayState.textContent = "WAITING";
+
+  const dayPill = document.getElementById("dayRiskPill");
+  if(dayPill) dayPill.textContent = "▲ DAY RISK --/5";
+
+  // Hide chart if needed
+  if(chart){ chart.destroy(); chart = null; }
+}
+
 async function run(){
   // load data (local files in repo)
   const d15 = await loadJSON("./data/xauusd_15m.json");
   const dd  = await loadJSON("./data/xauusd_daily.json");
 
-  const t15 = d15.timestamps.map(s=>new Date(s));
-  const p15 = d15.close.map(Number);
+  const t15 = (d15.timestamps || []).map(s=>new Date(s));
+  const p15 = (d15.close || []).map(Number);
+  const td  = (dd.timestamps || []).map(s=>new Date(s));
+  const pd  = (dd.close || []).map(Number);
 
-  // Build relative-day labels like [-39..0..+1]
-  // We'll plot last 40 points of *daily* data for the left chart (cleaner like your template)
-  const td = dd.timestamps.map(s=>new Date(s));
-  const pd = dd.close.map(Number);
+  // If not enough data yet, don't crash
+  if(p15.length < 10 || pd.length < 20){
+    setWaiting("Waiting for data... (JSON is empty/insufficient)");
+    return;
+  }
+
+  // We'll plot last 40 points of daily data
   const N = 40;
   const start = Math.max(0, pd.length - N);
   const close = pd.slice(start);
   const dateLabels = close.map((_,i)=> String(i-(close.length-1))); // -39..0
-  // forecast +1 (based on MA3 slope)
+
+  // indicators
   const mid = ma(close, 3);
   const std = rollingStd(close, 20);
   const upper = mid.map((m,i)=> (m==null||std[i]==null) ? null : m + 2*std[i]);
   const lower = mid.map((m,i)=> (m==null||std[i]==null) ? null : m - 2*std[i]);
 
-  const lastClose = close[close.length-1];
   const lastMid = mid[mid.length-1] ?? close[close.length-1];
-  const s = slopeLast(mid.filter(x=>x!=null), 5); // per step (day)
+  const s = slopeLast(mid.filter(x=>x!=null), 5); // per day
   const pred = lastMid + (Number.isFinite(s) ? s : 0);
 
-  // --- D ref: price around 04:00 TH of previous market day (for gold: 24/5)
-  // Data generator already writes anchor_04th and latest; use if present
+  // references
   const day0Ref = d15.day0_ref_04th ?? null;
   const latest = p15[p15.length-1];
   const latestTs = t15[t15.length-1];
 
-  // --- risk 1h/2h from 15m series (4 points = 1h, 8 points = 2h)
-  const step = 15; // minutes
-  const s1 = slopeLast(p15, 4); // per 15m step
+  // risk 1h/2h from 15m series (4 points = 1h, 8 points = 2h)
+  const s1 = slopeLast(p15, 4);
   const s2 = slopeLast(p15, 8);
-  // scale slopes into z using rolling std of 15m returns
+
   const ret = [];
   for(let i=1;i<p15.length;i++) ret.push(p15[i]-p15[i-1]);
   const rStd = (()=> {
@@ -138,24 +166,28 @@ async function run(){
   const z1 = (Number.isFinite(s1) && rStd>0) ? (s1/rStd) : NaN;
   const z2 = (Number.isFinite(s2) && rStd>0) ? (s2/rStd) : NaN;
 
-  // D risk from daily slope vs daily std
   const dRet = [];
   for(let i=1;i<close.length;i++) dRet.push(close[i]-close[i-1]);
   const dStd = Math.sqrt(dRet.reduce((a,b)=>a+b*b,0)/Math.max(1,dRet.length));
-  const dSlope = slopeLast(close, 7); // per day
+  const dSlope = slopeLast(close, 7);
   const zD = (Number.isFinite(dSlope) && dStd>0) ? (dSlope/dStd) : NaN;
 
   const scoreD  = scoreFromZ(zD);
   const score2h = scoreFromZ(z2);
   const score1h = scoreFromZ(z1);
 
-  // Human risk index: combine (max) + small bias if slopes agree
   const agree = (Math.sign(dSlope||0) === Math.sign(s1||0)) ? 0.2 : 0;
   const human = clamp(Math.max(scoreD, score2h, score1h) + agree, 0, 5);
 
   // UI
   const stamp = document.getElementById("stamp");
-  stamp.textContent = latestTs.toLocaleString("th-TH", { timeZone: TZ, year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit"}) + " (UTC+7)";
+  if(latestTs instanceof Date && !isNaN(latestTs)){
+    stamp.textContent = latestTs.toLocaleString("th-TH", {
+      timeZone: TZ, year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit"
+    }) + " (UTC+7)";
+  } else {
+    stamp.textContent = "Loaded (no timestamp)";
+  }
 
   document.getElementById("day0").textContent = day0Ref ? fmt2(day0Ref) : "--";
   document.getElementById("latest").textContent = fmt2(latest);
@@ -163,7 +195,6 @@ async function run(){
   document.getElementById("slope").textContent = (Number.isFinite(s) ? (s>=0?"+":"") + fmt2(s) + " /day" : "--");
   document.getElementById("humanRisk").textContent = fmt2(human);
 
-  // bars
   const setBar = (idFill, idScore, idArrow, score, slopeVal)=>{
     const fill = document.getElementById(idFill);
     const scoreEl = document.getElementById(idScore);
@@ -176,11 +207,9 @@ async function run(){
   setBar("h2Fill","h2Score","h2Arrow", score2h, s2);
   setBar("h1Fill","h1Score","h1Arrow", score1h, s1);
 
-  // Human bar
   const humanFill = document.querySelector("#humanBar .fill");
   humanFill.style.width = (human/5*100).toFixed(1)+"%";
 
-  // State badge + buttons
   const overall = riskColor(human);
   const label = riskLabel(human);
 
@@ -200,7 +229,6 @@ async function run(){
   const dayPill = document.getElementById("dayRiskPill");
   dayPill.textContent = `▲ DAY RISK ${fmt2(scoreD)}/5`;
 
-  // Bottom button strip
   const btnBuy = document.getElementById("btnBuy");
   const btnWatch = document.getElementById("btnWatch");
   const btnRisk = document.getElementById("btnRisk");
@@ -208,7 +236,6 @@ async function run(){
   btnWatch.style.opacity = overall==="watch" ? "1" : ".35";
   btnRisk.style.opacity = overall==="risk" ? "1" : ".35";
 
-  // Flash red if any >= 4.5 (your rule)
   if(Math.max(scoreD, score2h, score1h, human) >= 4.5){
     stateBadge.classList.add("flash");
     btnRisk.classList.add("flash");
@@ -216,21 +243,21 @@ async function run(){
     btnRisk.classList.remove("flash");
   }
 
-  // Chart draw
   drawChart(dateLabels, close, mid, upper, lower, pred);
 }
 
 function drawChart(labels, price, mid, upper, lower, pred){
-  const ctx = document.getElementById("chart");
+  if(!labels?.length || !price?.length) return;
 
+  const ctx = document.getElementById("chart");
   const predLabel = "+1";
   const labels2 = [...labels, predLabel];
+
   const price2 = [...price, null];
   const mid2   = [...mid, null];
   const upper2 = [...upper, null];
   const lower2 = [...lower, null];
 
-  // put forecast at last+1 based on pred
   const predArr = new Array(labels2.length).fill(null);
   predArr[predArr.length-2] = mid2[mid2.length-2] ?? price[price.length-1];
   predArr[predArr.length-1] = pred;
@@ -264,14 +291,8 @@ function drawChart(labels, price, mid, upper, lower, pred){
       },
       interaction:{mode:"index", intersect:false},
       scales:{
-        x:{
-          grid:{color:"rgba(255,255,255,.06)"},
-          ticks:{color:"rgba(233,226,212,.55)", maxTicksLimit:10}
-        },
-        y:{
-          grid:{color:"rgba(255,255,255,.06)"},
-          ticks:{color:"rgba(233,226,212,.55)"}
-        }
+        x:{ grid:{color:"rgba(255,255,255,.06)"}, ticks:{color:"rgba(233,226,212,.55)", maxTicksLimit:10} },
+        y:{ grid:{color:"rgba(255,255,255,.06)"}, ticks:{color:"rgba(233,226,212,.55)"} }
       }
     }
   });
@@ -280,6 +301,6 @@ function drawChart(labels, price, mid, upper, lower, pred){
 // run + refresh every 15 min on client (optional)
 run().catch(err=>{
   console.error(err);
-  document.getElementById("stamp").textContent = "Data load error (check /data/*.json)";
+  setWaiting("Data load error (check /data/*.json)");
 });
 setInterval(()=>run().catch(()=>{}), 15*60*1000);
