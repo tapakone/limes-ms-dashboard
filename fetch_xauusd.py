@@ -1,6 +1,5 @@
 import yfinance as yf
 import json
-from datetime import timezone
 import os
 
 DATA_DIR = "data"
@@ -19,16 +18,18 @@ def fetch(interval, period):
     if df.empty:
         raise RuntimeError("No data returned from Yahoo Finance")
 
-    # ใช้ values.tolist() เท่านั้น
-    timestamps = (
-        df.index
-        .tz_localize(timezone.utc, nonexistent="shift_forward")
-        .tz_convert("Asia/Bangkok")
-        .strftime("%Y-%m-%d %H:%M")
-        .tolist()
-    )
+    # ---- FIX TIMEZONE (หัวใจของปัญหา) ----
+    idx = df.index
+    if idx.tz is None:
+        idx = idx.tz_localize("UTC")
+    else:
+        idx = idx.tz_convert("UTC")
 
+    idx = idx.tz_convert("Asia/Bangkok")
+
+    timestamps = idx.strftime("%Y-%m-%d %H:%M").tolist()
     close = df["Close"].astype(float).values.tolist()
+
     return timestamps, close
 
 
