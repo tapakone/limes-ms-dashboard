@@ -2,16 +2,21 @@ name: Fetch XAUUSD Data
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # ทุก 15 นาที
+    - cron: "*/15 * * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,6 +36,14 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+
           git add data/*.json
-          git commit -m "Update XAUUSD data" || echo "No changes"
-          git push
+
+          # If no changes, stop
+          git diff --cached --quiet && echo "No changes" && exit 0
+
+          # Pull/rebase to avoid push conflicts when schedule overlaps
+          git pull --rebase origin main
+
+          git commit -m "Update XAUUSD data"
+          git push origin main
