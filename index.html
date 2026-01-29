@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LIMES MS — XAUUSD</title>
+  <title>LIMES MS — Dashboard</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -11,9 +11,25 @@
   <div class="wrap">
     <header class="topbar">
       <div class="title">
-        <div class="brand">LIMES MS — XAUUSD</div>
+        <div class="brand" id="brandTitle">LIMES MS — XAUUSD</div>
         <div class="subtitle">Daily Close | Forecast vs Actual (+1D)</div>
+
+        <!-- ✅ AUTOCOMPLETE BAR -->
+        <div class="assetbar" style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div style="opacity:.75; font-size:12px;">Asset</div>
+          <input
+            id="assetInput"
+            list="assetList"
+            placeholder="Type ticker e.g. XAUUSD, NVDA, GOOGL, BTC"
+            style="background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
+                   color:#e9e2d4; padding:10px 12px; border-radius:10px; min-width:260px; outline:none;"
+          />
+          <datalist id="assetList"></datalist>
+
+          <div id="assetHint" style="opacity:.65; font-size:12px;"></div>
+        </div>
       </div>
+
       <div class="stamp" id="stamp">--</div>
     </header>
 
@@ -27,9 +43,11 @@
             <span class="dot today"></span> Today (0)
           </div>
         </div>
+
         <div class="canvas-wrap">
           <canvas id="chart" height="360"></canvas>
         </div>
+
         <div class="bottom-row">
           <div class="pill" id="dayRiskPill">▲ DAY RISK —</div>
           <div class="cta" id="cta">WATCH</div>
@@ -68,6 +86,7 @@
             <div class="risk-title">DAY RISK</div>
             <div class="risk-right" id="dayState">--</div>
           </div>
+
           <div class="riskline">
             <div class="riskcode">D</div>
             <div class="riskbar"><div class="fill" id="dFill"></div></div>
