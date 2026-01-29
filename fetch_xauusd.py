@@ -1,32 +1,31 @@
 import yfinance as yf
 import pandas as pd
 import json
-from datetime import datetime
+from datetime import timezone
 import pytz
-import os
+from pathlib import Path
 
-# timezone ไทย
+Path("data").mkdir(exist_ok=True)
+
 tz = pytz.timezone("Asia/Bangkok")
-
-# ดึงราคา XAUUSD
 ticker = yf.Ticker("XAUUSD=X")
-df = ticker.history(period="5d", interval="15m")
 
-if df.empty:
-    raise Exception("No data from yfinance")
-
-df = df.reset_index()
-
-data = []
-for _, r in df.iterrows():
-    data.append({
-        "time": r["Datetime"].tz_convert(tz).isoformat(),
-        "price": round(float(r["Close"]), 2)
-    })
-
-os.makedirs("data", exist_ok=True)
-
+# 15m
+df15 = ticker.history(period="7d", interval="15m")
+df15 = df15.dropna()
+out15 = {
+    "timestamps": [t.tz_convert(tz).isoformat() for t in df15.index],
+    "close": df15["Close"].round(2).tolist()
+}
 with open("data/xauusd_15m.json", "w") as f:
-    json.dump(data, f, indent=2)
+    json.dump(out15, f)
 
-print("Saved data/xauusd_15m.json")
+# daily
+dfd = ticker.history(period="180d", interval="1d")
+dfd = dfd.dropna()
+outd = {
+    "timestamps": [t.tz_convert(tz).isoformat() for t in dfd.index],
+    "close": dfd["Close"].round(2).tolist()
+}
+with open("data/xauusd_daily.json", "w") as f:
+    json.dump(outd, f)
