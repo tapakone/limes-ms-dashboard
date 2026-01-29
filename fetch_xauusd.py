@@ -1,35 +1,32 @@
 import yfinance as yf
 import pandas as pd
+import json
 from datetime import datetime
 import pytz
-import json
 import os
 
+# timezone ไทย
 tz = pytz.timezone("Asia/Bangkok")
 
+# ดึงราคา XAUUSD
 ticker = yf.Ticker("XAUUSD=X")
-df = ticker.history(period="2d", interval="15m")
+df = ticker.history(period="5d", interval="15m")
+
+if df.empty:
+    raise Exception("No data from yfinance")
 
 df = df.reset_index()
-df["Datetime"] = df["Datetime"].dt.tz_convert(tz)
 
-latest = df.iloc[-1]
-
-output = {
-    "symbol": "XAUUSD",
-    "source": "Yahoo Finance",
-    "updated_th": latest["Datetime"].strftime("%Y-%m-%d %H:%M"),
-    "price": round(float(latest["Close"]), 2),
-    "data": [
-        {
-            "time": row["Datetime"].strftime("%Y-%m-%d %H:%M"),
-            "price": round(float(row["Close"]), 2)
-        }
-        for _, row in df.iterrows()
-    ]
-}
+data = []
+for _, r in df.iterrows():
+    data.append({
+        "time": r["Datetime"].tz_convert(tz).isoformat(),
+        "price": round(float(r["Close"]), 2)
+    })
 
 os.makedirs("data", exist_ok=True)
 
-with open("data/xauusd.json", "w") as f:
-    json.dump(output, f, indent=2)
+with open("data/xauusd_15m.json", "w") as f:
+    json.dump(data, f, indent=2)
+
+print("Saved data/xauusd_15m.json")
