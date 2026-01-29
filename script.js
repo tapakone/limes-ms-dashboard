@@ -1,398 +1,269 @@
-/* LIMES MS — Multi-Asset + Autocomplete
-   Requires:
-     /data/assets.json
-     /data/<asset>_15m.json
-     /data/<asset>_daily.json
-*/
+// LIMES MS Spec v1 Demo
+// Risk = slopeRisk(|slope%|) + positionBoost(z), clamp 0..5
+// Flash RED when risk >= 4.5
 
-const TZ = "Asia/Bangkok";
-const DATA_DIR = "./data";
+const els = {
+  c: document.getElementById("c"),
+  statusLine: document.getElementById("statusLine"),
+  assetInput: document.getElementById("assetInput"),
+  assetList: document.getElementById("assetList"),
+  loadBtn: document.getElementById("loadBtn"),
+  stateBig: document.getElementById("stateBig"),
+  stateBadge: document.getElementById("stateBadge"),
+  stateBox: document.getElementById("stateBox"),
+  riskPill: document.getElementById("riskPill"),
+  latest15: document.getElementById("latest15"),
+  slopeDay: document.getElementById("slopeDay"),
+  riskScore: document.getElementById("riskScore"),
+  barD: document.getElementById("barD"),
+  bar2h: document.getElementById("bar2h"),
+  bar1h: document.getElementById("bar1h"),
+  valD: document.getElementById("valD"),
+  val2h: document.getElementById("val2h"),
+  val1h: document.getElementById("val1h"),
+};
 
-// default asset (id)
-const DEFAULT_ASSET = "xauusd";
+const ctx = els.c.getContext("2d");
+
+let ASSETS = [];
+let currentId = "xauusd";
 
 // ---------- helpers ----------
-function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
-function fmt2(n){ return (Number.isFinite(n) ? n.toFixed(2) : "--"); }
+function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+function fmt2(x){ return (x==null || Number.isNaN(x)) ? "—" : x.toFixed(2); }
+function pct2(x){ return (x==null || Number.isNaN(x)) ? "—" : (x*100).toFixed(2) + "%"; }
 
-function riskColor(score){
-  if(score >= 4.5) return "risk";
-  if(score >= 3.5) return "watch";
-  return "buy";
-}
-function riskLabel(score){
-  if(score >= 4.5) return "HIGH RISK";
-  if(score >= 3.5) return "CAUTION";
-  return "BUY";
-}
-function arrowFromSlope(s){
-  if(!Number.isFinite(s)) return "→";
-  if(s > 0.02) return "↗";
-  if(s < -0.02) return "↘";
-  return "→";
-}
-function slugify(s){
-  return (s || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .toLowerCase()
-    .replace(/^_+|_+$/g, "");
+async function loadJSON(path){
+  const r = await fetch(path, {cache:"no-store"});
+  if(!r.ok) throw new Error(`HTTP ${r.status} for ${path}`);
+  return r.json();
 }
 
-function getParam(name){
-  return new URLSearchParams(window.location.search).get(name);
-}
-function setParamAndReload(name, value){
-  const url = new URL(window.location.href);
-  url.searchParams.set(name, value);
-  window.location.href = url.toString();
-}
-
-async function loadJSON(url){
-  const r = await fetch(url, {cache:"no-store"});
-  if(!r.ok) throw new Error("Fetch failed: " + url + " (" + r.status + ")");
-  return await r.json();
-}
-
-// rolling mean + std (simple)
-function ma(arr, win){
-  const out = new Array(arr.length).fill(null);
+function ma(arr, n){
+  const out = [];
   for(let i=0;i<arr.length;i++){
-    if(i < win-1) continue;
-    let s=0;
-    for(let j=i-win+1;j<=i;j++) s += arr[j];
-    out[i] = s / win;
-  }
-  return out;
-}
-function rollingStd(arr, win){
-  const out = new Array(arr.length).fill(null);
-  for(let i=0;i<arr.length;i++){
-    if(i < win-1) continue;
-    let s=0;
-    for(let j=i-win+1;j<=i;j++) s += arr[j];
-    const m = s / win;
-    let v=0;
-    for(let j=i-win+1;j<=i;j++) v += (arr[j]-m)**2;
-    out[i] = Math.sqrt(v / win);
+    const s = Math.max(0, i-n+1);
+    const slice = arr.slice(s, i+1);
+    const m = slice.reduce((a,b)=>a+b,0)/slice.length;
+    out.push(m);
   }
   return out;
 }
 
-// linear slope (per step)
-function slopeLast(arr, k){
-  if(arr.length < k) return NaN;
-  const y = arr.slice(arr.length-k);
-  const x = [...Array(k)].map((_,i)=>i);
-  const xm = (k-1)/2;
-  const ym = y.reduce((a,b)=>a+b,0)/k;
-  let num=0, den=0;
-  for(let i=0;i<k;i++){
-    num += (x[i]-xm)*(y[i]-ym);
-    den += (x[i]-xm)**2;
+function std(arr){
+  const m = arr.reduce((a,b)=>a+b,0)/arr.length;
+  const v = arr.reduce((a,b)=>a+(b-m)*(b-m),0)/arr.length;
+  return Math.sqrt(v);
+}
+
+// --- risk from slope absolute percentage (0..5) ---
+function slopeRisk(absSlopePct){
+  // absSlopePct is in "percent" unit, e.g. 7.2 means 7.2%
+  // bands: 0-5 low, 5-10 mid, 10-15 high, >=15 very high
+  // map to 0..5 smoothly
+  if(absSlopePct <= 5) return (absSlopePct/5)*1.6;                 // 0..1.6
+  if(absSlopePct <= 10) return 1.6 + ((absSlopePct-5)/5)*1.2;      // 1.6..2.8
+  if(absSlopePct <= 15) return 2.8 + ((absSlopePct-10)/5)*1.2;     // 2.8..4.0
+  return clamp(4.0 + ((absSlopePct-15)/15)*1.2, 4.0, 5.0);         // 4.0..5.0
+}
+
+// --- boost from position in bands (z distance from mid / sigma) ---
+function positionBoost(zAbs){
+  // zAbs ~ 0..2 typically (beyond 2 = outside band)
+  // small boost when near edges
+  if(zAbs < 0.8) return 0.0;
+  if(zAbs < 1.4) return (zAbs-0.8)/(0.6)*0.4;   // 0..0.4
+  if(zAbs < 2.0) return 0.4 + (zAbs-1.4)/(0.6)*0.8; // 0.4..1.2
+  return 1.2; // cap boost
+}
+
+function riskToState(risk){
+  if(risk >= 4.5) return {label:"HIGH RISK", cls:"badge-high"};
+  if(risk >= 2.6) return {label:"WATCH", cls:"badge-watch"};
+  return {label:"BUY", cls:"badge-buy"};
+}
+
+// ---------- chart ----------
+function drawChart(series){
+  // series: {price, mid, up, lo}
+  const W = els.c.width, H = els.c.height;
+  ctx.clearRect(0,0,W,H);
+
+  // padding
+  const P = {l:60, r:18, t:18, b:34};
+
+  const all = [...series.up, ...series.lo, ...series.price];
+  const minY = Math.min(...all);
+  const maxY = Math.max(...all);
+  const pad = (maxY-minY)*0.08 || 1;
+  const y0 = minY - pad;
+  const y1 = maxY + pad;
+
+  function x(i){ return P.l + (i/(series.price.length-1))*(W-P.l-P.r); }
+  function y(v){ return P.t + (1-(v-y0)/(y1-y0))*(H-P.t-P.b); }
+
+  // grid
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1;
+  for(let g=0; g<=6; g++){
+    const yy = P.t + (g/6)*(H-P.t-P.b);
+    ctx.beginPath(); ctx.moveTo(P.l,yy); ctx.lineTo(W-P.r,yy); ctx.stroke();
   }
-  return den===0 ? NaN : num/den;
+
+  // y labels
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.font = "12px system-ui";
+  for(let g=0; g<=6; g++){
+    const v = y1 - (g/6)*(y1-y0);
+    const yy = P.t + (g/6)*(H-P.t-P.b);
+    ctx.fillText(v.toFixed(0), 8, yy+4);
+  }
+
+  // bands
+  drawLine(series.up, "rgba(94,120,151,0.9)");
+  drawLine(series.lo, "rgba(94,120,151,0.9)");
+  // mid
+  drawLine(series.mid, "rgba(127,209,255,0.95)", [4,3]);
+  // price
+  drawLine(series.price, "rgba(240,178,74,0.95)");
+
+  // last point marker
+  const i = series.price.length-1;
+  ctx.fillStyle = "rgba(240,178,74,1)";
+  ctx.beginPath(); ctx.arc(x(i), y(series.price[i]), 5, 0, Math.PI*2); ctx.fill();
+
+  function drawLine(arr, color, dash=null){
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.setLineDash(dash || []);
+    ctx.beginPath();
+    arr.forEach((v,i)=>{
+      if(i===0) ctx.moveTo(x(i),y(v));
+      else ctx.lineTo(x(i),y(v));
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 }
 
-// map |z| to 0..5 risk
-function scoreFromZ(z){
-  if(!Number.isFinite(z)) return 0;
-  const s = 0.5 + 1.1*Math.abs(z) + 0.25*(Math.abs(z)**1.3);
-  return clamp(s, 0, 5);
-}
-
-// ---------- asset list + autocomplete ----------
-let ASSETS = []; // from assets.json
-let assetId = (getParam("asset") || DEFAULT_ASSET).toLowerCase();
-let assetLabel = assetId.toUpperCase();
-
-function setBrandTitle(){
-  const brand = document.getElementById("brandTitle");
-  if(brand) brand.textContent = `LIMES MS — ${assetLabel}`;
-}
-
-async function loadAssetsList(){
+// ---------- main load ----------
+async function loadAssets(){
   try{
-    const j = await loadJSON(`${DATA_DIR}/assets.json?ts=${Date.now()}`);
+    const j = await loadJSON("data/assets.json");
     ASSETS = j.assets || [];
-    return ASSETS;
+    els.assetList.innerHTML = "";
+    ASSETS.forEach(a=>{
+      const opt = document.createElement("option");
+      opt.value = a.label;
+      els.assetList.appendChild(opt);
+    });
   }catch(e){
-    // assets.json ยังไม่มี → ยังใช้ได้แบบ default asset เดียว
-    ASSETS = [];
-    return [];
+    els.statusLine.textContent = "assets.json not found (using fallback)";
+    // fallback minimal
+    ASSETS = [{id:"xauusd",label:"XAUUSD"}];
   }
 }
 
-function setupAutocomplete(){
-  const input = document.getElementById("assetInput");
-  const list  = document.getElementById("assetList");
-  const hint  = document.getElementById("assetHint");
-  if(!input || !list) return;
-
-  // fill datalist
-  list.innerHTML = "";
-  for(const a of ASSETS){
-    const opt = document.createElement("option");
-    opt.value = a.label; // พิมพ์ GOOGL แล้วเลือกได้
-    list.appendChild(opt);
-  }
-
-  // current label
-  const hit = ASSETS.find(x => x.id === assetId);
-  if(hit){
-    assetLabel = hit.label;
-    input.value = hit.label;
-    if(hint) hint.textContent = `Loaded: ${hit.label}`;
-  }else{
-    input.value = assetId.toUpperCase();
-    if(hint) hint.textContent = `Loaded: ${assetId.toUpperCase()}`;
-  }
-  setBrandTitle();
-
-  input.addEventListener("change", ()=>{
-    const val = (input.value || "").trim().toUpperCase();
-    const byLabel = ASSETS.find(x => x.label === val);
-    const nextId = byLabel ? byLabel.id : slugify(val);
-    setParamAndReload("asset", nextId);
-  });
+function resolveAssetId(input){
+  const s = (input||"").trim().toUpperCase();
+  const found = ASSETS.find(a => a.label.toUpperCase() === s);
+  return found ? found.id : (s ? s.toLowerCase() : currentId);
 }
 
-// ---------- main ----------
-let chart;
-
-function setWaiting(msg){
-  const stamp = document.getElementById("stamp");
-  stamp.textContent = msg;
-
-  ["day0","latest","pred","slope","humanRisk"].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.textContent = "--";
-  });
-
-  const stateBadge = document.getElementById("stateBadge");
-  if(stateBadge){
-    stateBadge.classList.remove("buy","watch","risk","flash");
-    stateBadge.classList.add("watch");
-    stateBadge.textContent = "WAITING";
-  }
-
-  const dayState = document.getElementById("dayState");
-  if(dayState) dayState.textContent = "WAITING";
-
-  const dayPill = document.getElementById("dayRiskPill");
-  if(dayPill) dayPill.textContent = "▲ DAY RISK --/5";
-
-  const cta = document.getElementById("cta");
-  const cta2 = document.getElementById("cta2");
-  if(cta) cta.textContent = "WATCH";
-  if(cta2) cta2.style.display = "none";
-
-  if(chart){ chart.destroy(); chart = null; }
-}
-
-async function run(){
-  // dynamic filenames based on selected assetId
-  const p15url = `${DATA_DIR}/${assetId}_15m.json?ts=${Date.now()}`;
-  const pDurl  = `${DATA_DIR}/${assetId}_daily.json?ts=${Date.now()}`;
-
-  let d15, dd;
+async function loadAsset(assetId){
+  currentId = assetId;
+  els.statusLine.textContent = "Loading data...";
   try{
-    d15 = await loadJSON(p15url);
-    dd  = await loadJSON(pDurl);
-  }catch(e){
-    console.error(e);
-    setWaiting(`No data yet for "${assetLabel}" — add it in Python ASSETS & let Actions run`);
-    return;
-  }
+    const daily = await loadJSON(`data/${assetId}_daily.json`);
+    const m15   = await loadJSON(`data/${assetId}_15m.json`);
 
-  const t15 = (d15.timestamps || []).map(s=>new Date(s));
-  const p15 = (d15.close || []).map(Number);
-  const td  = (dd.timestamps || []).map(s=>new Date(s));
-  const pd  = (dd.close || []).map(Number);
+    const priceD = (daily.close || []).map(Number);
+    const price15 = (m15.close || []).map(Number);
 
-  if(p15.length < 10 || pd.length < 20){
-    setWaiting("Waiting for data... (JSON is empty/insufficient)");
-    return;
-  }
-
-  // plot last 40 daily points
-  const N = 40;
-  const start = Math.max(0, pd.length - N);
-  const close = pd.slice(start);
-  const dateLabels = close.map((_,i)=> String(i-(close.length-1))); // -39..0
-
-  // indicators
-  const mid = ma(close, 3);
-  const std = rollingStd(close, 20);
-  const upper = mid.map((m,i)=> (m==null||std[i]==null) ? null : m + 2*std[i]);
-  const lower = mid.map((m,i)=> (m==null||std[i]==null) ? null : m - 2*std[i]);
-
-  const lastMid = mid[mid.length-1] ?? close[close.length-1];
-  const s = slopeLast(mid.filter(x=>x!=null), 5); // per day
-  const pred = lastMid + (Number.isFinite(s) ? s : 0);
-
-  // references
-  const day0Ref = d15.day0_ref_04th ?? null;  // optional (คุณค่อยเพิ่มจากฝั่ง python ก็ได้)
-  const latest = p15[p15.length-1];
-  const latestTs = t15[t15.length-1];
-
-  // risk 1h/2h from 15m series (4 points = 1h, 8 points = 2h)
-  const s1 = slopeLast(p15, 4);
-  const s2 = slopeLast(p15, 8);
-
-  const ret = [];
-  for(let i=1;i<p15.length;i++) ret.push(p15[i]-p15[i-1]);
-  const rStd = (()=> {
-    const win=64;
-    if(ret.length < win) return Math.sqrt(ret.reduce((a,b)=>a+b*b,0)/Math.max(1,ret.length));
-    const slice = ret.slice(ret.length-win);
-    const m = slice.reduce((a,b)=>a+b,0)/win;
-    const v = slice.reduce((a,b)=>a+(b-m)*(b-m),0)/win;
-    return Math.sqrt(v);
-  })();
-  const z1 = (Number.isFinite(s1) && rStd>0) ? (s1/rStd) : NaN;
-  const z2 = (Number.isFinite(s2) && rStd>0) ? (s2/rStd) : NaN;
-
-  const dRet = [];
-  for(let i=1;i<close.length;i++) dRet.push(close[i]-close[i-1]);
-  const dStd = Math.sqrt(dRet.reduce((a,b)=>a+b*b,0)/Math.max(1,dRet.length));
-  const dSlope = slopeLast(close, 7);
-  const zD = (Number.isFinite(dSlope) && dStd>0) ? (dSlope/dStd) : NaN;
-
-  const scoreD  = scoreFromZ(zD);
-  const score2h = scoreFromZ(z2);
-  const score1h = scoreFromZ(z1);
-
-  const agree = (Math.sign(dSlope||0) === Math.sign(s1||0)) ? 0.2 : 0;
-  const human = clamp(Math.max(scoreD, score2h, score1h) + agree, 0, 5);
-
-  // UI stamp
-  const stamp = document.getElementById("stamp");
-  if(latestTs instanceof Date && !isNaN(latestTs)){
-    stamp.textContent = latestTs.toLocaleString("th-TH", {
-      timeZone: TZ, year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit"
-    }) + " (UTC+7)";
-  } else {
-    stamp.textContent = "Loaded (no timestamp)";
-  }
-
-  document.getElementById("day0").textContent = day0Ref ? fmt2(day0Ref) : "--";
-  document.getElementById("latest").textContent = fmt2(latest);
-  document.getElementById("pred").textContent = fmt2(pred);
-  document.getElementById("slope").textContent = (Number.isFinite(s) ? (s>=0?"+":"") + fmt2(s) + " /day" : "--");
-  document.getElementById("humanRisk").textContent = fmt2(human);
-
-  const setBar = (idFill, idScore, idArrow, score, slopeVal)=>{
-    const fill = document.getElementById(idFill);
-    const scoreEl = document.getElementById(idScore);
-    const arrowEl = document.getElementById(idArrow);
-    fill.style.width = (score/5*100).toFixed(1)+"%";
-    scoreEl.textContent = fmt2(score) + " / 5";
-    arrowEl.textContent = arrowFromSlope(slopeVal);
-  };
-  setBar("dFill","dScore","dArrow", scoreD, dSlope);
-  setBar("h2Fill","h2Score","h2Arrow", score2h, s2);
-  setBar("h1Fill","h1Score","h1Arrow", score1h, s1);
-
-  const humanFill = document.querySelector("#humanBar .fill");
-  humanFill.style.width = (human/5*100).toFixed(1)+"%";
-
-  const overall = riskColor(human);
-  const label = riskLabel(human);
-
-  const stateBadge = document.getElementById("stateBadge");
-  stateBadge.classList.remove("buy","watch","risk","flash");
-  stateBadge.classList.add(overall);
-  stateBadge.textContent = label;
-
-  const dayState = document.getElementById("dayState");
-  dayState.textContent = label;
-
-  const cta = document.getElementById("cta");
-  const cta2 = document.getElementById("cta2");
-  cta.textContent = (overall==="buy" ? "BUY" : "WATCH");
-  cta2.style.display = (overall==="risk" ? "block":"none");
-
-  const dayPill = document.getElementById("dayRiskPill");
-  dayPill.textContent = `▲ DAY RISK ${fmt2(scoreD)}/5`;
-
-  const btnBuy = document.getElementById("btnBuy");
-  const btnWatch = document.getElementById("btnWatch");
-  const btnRisk = document.getElementById("btnRisk");
-  btnBuy.style.opacity = overall==="buy" ? "1" : ".35";
-  btnWatch.style.opacity = overall==="watch" ? "1" : ".35";
-  btnRisk.style.opacity = overall==="risk" ? "1" : ".35";
-
-  if(Math.max(scoreD, score2h, score1h, human) >= 4.5){
-    stateBadge.classList.add("flash");
-    btnRisk.classList.add("flash");
-  } else {
-    btnRisk.classList.remove("flash");
-  }
-
-  drawChart(dateLabels, close, mid, upper, lower, pred);
-}
-
-function drawChart(labels, price, mid, upper, lower, pred){
-  if(!labels?.length || !price?.length) return;
-
-  const ctx = document.getElementById("chart");
-  const predLabel = "+1";
-  const labels2 = [...labels, predLabel];
-
-  const price2 = [...price, null];
-  const mid2   = [...mid, null];
-  const upper2 = [...upper, null];
-  const lower2 = [...lower, null];
-
-  const predArr = new Array(labels2.length).fill(null);
-  predArr[predArr.length-2] = mid2[mid2.length-2] ?? price[price.length-1];
-  predArr[predArr.length-1] = pred;
-
-  if(chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: labels2,
-      datasets: [
-        { label:"Upper", data: upper2, borderColor:"rgba(110,198,255,.55)", borderWidth:1, pointRadius:0, tension:.25 },
-        { label:"Lower", data: lower2, borderColor:"rgba(110,198,255,.55)", borderWidth:1, pointRadius:0, tension:.25 },
-        { label:"Price", data: price2, borderColor:"rgba(242,195,107,1)", backgroundColor:"rgba(242,195,107,.15)", borderWidth:2, pointRadius:2, tension:.25 },
-        { label:"MA3", data: mid2, borderColor:"rgba(110,198,255,1)", borderDash:[4,4], borderWidth:2, pointRadius:0, tension:.25 },
-        { label:"Forecast", data: predArr, borderColor:"rgba(240,166,43,1)", borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0 },
-        { label:"Today", data: (()=>{ const a=new Array(labels2.length).fill(null); a[labels2.length-2]=price[price.length-1]; return a; })(),
-          borderColor:"rgba(240,166,43,1)", pointBackgroundColor:"rgba(240,166,43,1)", pointBorderColor:"#000", pointRadius:6, showLine:false },
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          mode:"index", intersect:false,
-          backgroundColor:"rgba(0,0,0,.85)",
-          borderColor:"rgba(255,255,255,.12)",
-          borderWidth:1
-        }
-      },
-      interaction:{mode:"index", intersect:false},
-      scales:{
-        x:{ grid:{color:"rgba(255,255,255,.06)"}, ticks:{color:"rgba(233,226,212,.55)", maxTicksLimit:10} },
-        y:{ grid:{color:"rgba(255,255,255,.06)"}, ticks:{color:"rgba(233,226,212,.55)"} }
-      }
+    if(priceD.length < 10 || price15.length < 10){
+      els.statusLine.textContent = "Waiting for data... (JSON is empty/insufficient)";
+      return;
     }
-  });
+
+    // compute bands on daily window (last 40)
+    const w = 40;
+    const p = priceD.slice(-w);
+    const mid = ma(p, 3);
+    const sigma = std(p);
+    const up = mid.map(v=>v + 2*sigma);
+    const lo = mid.map(v=>v - 2*sigma);
+
+    // slope daily (% from first to last in window)
+    const slopePct = ((p[p.length-1] - p[0]) / p[0]) * 100;
+
+    // position z (distance from mid in sigma units)
+    const last = p[p.length-1];
+    const midLast = mid[mid.length-1];
+    const zAbs = sigma>0 ? Math.abs((last - midLast)/sigma) : 0;
+
+    // risk score
+    const rSlope = slopeRisk(Math.abs(slopePct));
+    const rBoost = positionBoost(zAbs);
+    const risk = clamp(rSlope + rBoost, 0, 5);
+
+    const st = riskToState(risk);
+
+    // update UI
+    els.latest15.textContent = fmt2(price15[price15.length-1]);
+    els.slopeDay.textContent = (slopePct>=0?"+":"") + slopePct.toFixed(2) + "%";
+    els.riskScore.textContent = fmt2(risk) + " / 5";
+
+    els.stateBig.textContent = st.label;
+    els.stateBig.className = "stateBig " + st.cls;
+
+    els.stateBadge.textContent = st.label;
+    els.stateBadge.className = "bigBadge " + st.cls;
+
+    els.riskPill.textContent = `DAY RISK ${fmt2(risk)}/5`;
+
+    // bars (demo: reuse risk for D, and scale down for 2hr/1hr)
+    setBar(els.barD, els.valD, risk);
+    setBar(els.bar2h, els.val2h, clamp(risk*0.44,0,5));
+    setBar(els.bar1h, els.val1h, clamp(risk*0.24,0,5));
+
+    // flash when >= 4.5
+    if(risk >= 4.5){
+      els.stateBox.classList.add("flash-red");
+      els.stateBadge.classList.add("flash-red");
+    }else{
+      els.stateBox.classList.remove("flash-red");
+      els.stateBadge.classList.remove("flash-red");
+    }
+
+    // draw chart
+    drawChart({price:p, mid, up, lo});
+    els.statusLine.textContent = `Loaded: ${assetId.toUpperCase()} | slope=${slopePct.toFixed(2)}% | z=${zAbs.toFixed(2)}σ`;
+
+  }catch(e){
+    els.statusLine.textContent = "Data load error: " + e.message;
+  }
 }
 
-// ---------- boot ----------
-(async ()=>{
-  await loadAssetsList();
-  setupAutocomplete();
-  run().catch(err=>{
-    console.error(err);
-    setWaiting("Data load error (check /data/*.json)");
-  });
-  setInterval(()=>run().catch(()=>{}), 15*60*1000);
+function setBar(fillEl, valEl, risk){
+  fillEl.style.width = (risk/5*100).toFixed(0) + "%";
+  valEl.textContent = fmt2(risk) + " / 5";
+}
+
+els.loadBtn.addEventListener("click", ()=>{
+  const id = resolveAssetId(els.assetInput.value);
+  loadAsset(id);
+});
+
+els.assetInput.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){
+    const id = resolveAssetId(els.assetInput.value);
+    loadAsset(id);
+  }
+});
+
+// init
+(async function(){
+  await loadAssets();
+  els.assetInput.value = "XAUUSD";
+  loadAsset("xauusd");
 })();
