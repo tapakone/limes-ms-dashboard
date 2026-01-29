@@ -1,14 +1,16 @@
-name: Fetch XAUUSD Data
+name: Fetch Assets Data
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -21,15 +23,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas pytz
+          pip install yfinance pandas numpy pytz
 
-      - name: Fetch XAUUSD price
-        run: python fetch_xauusd.py
+      - name: Fetch assets
+        run: |
+          python fetch_assets.py
 
       - name: Commit and push data
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add data/*.json
-          git commit -m "Update XAUUSD data" || echo "No changes"
+          git commit -m "Update assets data" || echo "No changes"
           git push
