@@ -1,0 +1,1 @@
+{"symbol": "ADVANC.BK", "interval": "15m", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:23:01.264365+00:00"}}

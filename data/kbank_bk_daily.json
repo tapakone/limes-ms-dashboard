@@ -1,0 +1,1 @@
+{"symbol": "KBANK.BK", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:23:01.405185+00:00"}}
