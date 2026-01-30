@@ -1,235 +1,1018 @@
 <!doctype html>
-<html lang="en">
+<html lang="th">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LIMES MS — Dashboard</title>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <style>
     :root{
-      --bg:#0b0f16;
-      --panel:#0f1622cc;
-      --panel2:#0f1622ee;
-      --gold:#c79a3b;
-      --muted:#9aa4b2;
-      --good:#20c997;
-      --warn:#f5c542;
-      --bad:#ff4d4f;
-      --line:#1e2a3a;
-      --radius:18px;
+      --bg0:#070A12;
+      --bg1:#0B1020;
+      --card: rgba(18, 24, 40, 0.55);
+      --card2: rgba(18, 24, 40, 0.72);
+      --stroke: rgba(255,255,255,0.08);
+      --text:#E7ECFF;
+      --muted: rgba(231,236,255,0.65);
+      --gold:#D8A23D;
+      --blue:#62B5FF;
+      --band:#6E86A8;
+      --danger:#FF3B3B;
+      --ok:#2BD97F;
+      --warn:#F7B84B;
+      --shadow: 0 18px 55px rgba(0,0,0,0.45);
+      --radius: 18px;
     }
-    html,body{height:100%;margin:0;background:radial-gradient(1200px 600px at 20% 20%, #1b2233 0%, #0b0f16 55%, #070a10 100%);color:#e8eefc;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    .app{max-width:1200px;margin:0 auto;padding:14px 14px 22px 14px;box-sizing:border-box}
 
-    /* header */
-    .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
-    .titleWrap{display:flex;flex-direction:column;gap:6px}
-    .title{font-size:28px;letter-spacing:1px;font-weight:800}
-    .subtitle{color:var(--muted);font-size:13px}
-    .rightTop{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
-    #stamp{color:var(--muted);font-size:13px;white-space:nowrap}
-
-    .searchRow{display:flex;align-items:center;gap:8px}
-    .tickerInput{
-      width:min(320px,55vw);
-      height:34px;
-      border-radius:10px;
-      border:1px solid #2a3a52;
-      background:#0c1220;
-      color:#e8eefc;
-      padding:0 10px;
-      outline:none;
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans Thai", "Noto Sans", sans-serif;
+      background:
+        radial-gradient(1200px 800px at 20% 30%, rgba(216,162,61,0.18), transparent 55%),
+        radial-gradient(900px 700px at 80% 40%, rgba(98,181,255,0.12), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      min-height:100vh;
     }
-    .btn{
-      height:34px;
+
+    .wrap{max-width:1200px; margin:0 auto; padding:22px 18px 80px;}
+
+    .topbar{
+      display:flex; align-items:flex-start; justify-content:space-between;
+      gap:12px; margin-bottom:14px;
+    }
+
+    .title .brand{
+      font-size:40px; font-weight:800; letter-spacing:0.5px;
+    }
+    .title .subtitle{
+      margin-top:4px; color:var(--muted); font-size:14px;
+    }
+
+    .rightTop{
+      display:flex; flex-direction:column; align-items:flex-end; gap:8px; min-width:280px;
+    }
+
+    .stamp{
+      color:var(--muted);
+      font-size:14px;
+      white-space:nowrap;
+    }
+
+    .searchRow{
+      display:flex; align-items:center; gap:10px; width:100%;
+      justify-content:flex-end;
+    }
+
+    .searchBox{
+      position:relative;
+      width:100%;
+      max-width:320px;
+    }
+
+    input#sym{
+      width:100%;
+      height:40px;
       padding:0 12px;
-      border-radius:10px;
-      border:1px solid #2a3a52;
-      background:#111a2a;
-      color:#e8eefc;
-      cursor:pointer;
-      font-weight:700;
-    }
-    .btn:hover{filter:brightness(1.1)}
-    .loadedMeta{color:var(--muted);font-size:12px;text-align:right}
-
-    /* layout */
-    .grid{display:grid;grid-template-columns: 1.6fr 0.9fr;gap:14px;align-items:stretch}
-    .panel{background:linear-gradient(180deg,var(--panel) 0%, rgba(15,22,34,0.55) 100%);border:1px solid #1b2a3f;border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,0.35);overflow:hidden}
-    .chartPanel{padding:12px 12px 10px 12px;position:relative}
-    .legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:6px 0 6px 0}
-    .dot{display:inline-block;width:9px;height:9px;border-radius:99px;margin-right:6px;transform:translateY(1px)}
-    .dot.price{background:#f0b44b}
-    .dot.mid{background:#4db6ff}
-    .dot.band{background:#6e8fb3}
-    .dot.today{background:#ffd24d}
-
-    /* IMPORTANT: keep chart height sane (fix "vertical too tall") */
-    .chartWrap{height:420px;}
-    @media (max-width: 980px){
-      .grid{grid-template-columns:1fr}
-      .chartWrap{height:360px;}
-      .rightTop{align-items:flex-start}
-    }
-    canvas{width:100% !important;height:100% !important}
-
-    /* side panel */
-    .side{padding:12px}
-    .cardTitle{color:var(--muted);font-weight:800;font-size:12px;letter-spacing:1px;margin-bottom:8px}
-    .badge{
-      display:flex;align-items:center;justify-content:center;
-      height:54px;border-radius:14px;border:1px solid #273b56;
-      background:#0d1524;
-      font-weight:900;font-size:22px;letter-spacing:1px;
-      margin-bottom:10px;
-    }
-    .badge.good{background:rgba(32,201,151,0.10);border-color:rgba(32,201,151,0.35);color:var(--good)}
-    .badge.warn{background:rgba(245,197,66,0.10);border-color:rgba(245,197,66,0.35);color:var(--warn)}
-    .badge.bad{background:rgba(255,77,79,0.10);border-color:rgba(255,77,79,0.35);color:var(--bad)}
-    .kv{display:grid;grid-template-columns: 1fr auto;gap:8px;font-size:13px;align-items:center;margin:7px 0}
-    .kv .k{color:var(--muted)}
-    .kv .v{font-weight:800}
-
-    .barWrap{margin-top:10px}
-    .bar{height:10px;border-radius:99px;background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);position:relative;overflow:hidden;border:1px solid #233449}
-    .barNeedle{position:absolute;top:-2px;width:2px;height:14px;background:#e8eefc;opacity:0.95}
-
-    /* Floating status (single box bottom-right) */
-    .floating{
-      position:fixed;
-      right:14px;
-      bottom:14px;
-      z-index:999;
-      background:rgba(10,14,22,0.92);
-      border:1px solid #22344d;
-      border-radius:16px;
-      padding:10px 12px;
-      min-width: 260px;
-      box-shadow:0 14px 50px rgba(0,0,0,0.45);
-      backdrop-filter: blur(8px);
-    }
-    .floatingTop{display:flex;align-items:center;justify-content:space-between;gap:10px}
-    .pill{
-      flex:1;
-      height:36px;
       border-radius:12px;
-      display:flex;align-items:center;justify-content:center;
-      font-weight:900;letter-spacing:1px;
-      border:1px solid #2a3a52;
-      background:#101a2a;
+      border:1px solid var(--stroke);
+      background: rgba(0,0,0,0.25);
+      color: var(--text);
+      outline:none;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
     }
-    .pill.good{color:var(--good);border-color:rgba(32,201,151,0.35);background:rgba(32,201,151,0.10)}
-    .pill.warn{color:var(--warn);border-color:rgba(245,197,66,0.35);background:rgba(245,197,66,0.10)}
-    .pill.bad{color:var(--bad);border-color:rgba(255,77,79,0.35);background:rgba(255,77,79,0.10)}
-    .floatingSub{margin-top:6px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:10px}
-    .flash{
-      animation: flash 0.9s infinite;
+    input#sym::placeholder{color: rgba(231,236,255,0.45);}
+
+    .dd{
+      position:absolute; top:44px; left:0; right:0;
+      background: rgba(10,12,18,0.92);
+      border:1px solid var(--stroke);
+      border-radius:12px;
+      overflow:hidden;
+      display:none;
+      box-shadow: var(--shadow);
+      z-index:50;
     }
-    @keyframes flash{
-      0%{filter:brightness(1.0)}
-      50%{filter:brightness(1.6)}
-      100%{filter:brightness(1.0)}
+    .dd .item{
+      padding:10px 12px;
+      cursor:pointer;
+      display:flex; justify-content:space-between; gap:10px;
+      border-bottom:1px solid rgba(255,255,255,0.06);
+    }
+    .dd .item:last-child{border-bottom:none}
+    .dd .item:hover{background: rgba(255,255,255,0.06);}
+    .dd .l{font-weight:700}
+    .dd .r{color:var(--muted); font-size:12px; text-align:right}
+
+    button#loadBtn{
+      height:40px;
+      padding:0 14px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      background: rgba(0,0,0,0.22);
+      color: var(--text);
+      cursor:pointer;
+    }
+    button#loadBtn:hover{background: rgba(255,255,255,0.06);}
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.55fr 1fr;
+      gap:14px;
+      align-items:stretch;
+    }
+
+    .card{
+      background: var(--card);
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .chart-card{padding:14px 14px 12px;}
+    .chart-head{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; margin-bottom:6px;
+    }
+    .legend{
+      display:flex; flex-wrap:wrap; gap:14px; align-items:center;
+      color:var(--muted); font-size:13px;
+    }
+    .dot{width:9px; height:9px; border-radius:999px; display:inline-block; margin-right:6px;}
+    .dot.price{background: var(--gold);}
+    .dot.mid{background: var(--blue);}
+    .dot.band{background: var(--band);}
+    .dot.today{background: #FFC861;}
+
+    .canvas-wrap{
+      border-radius: 14px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.18);
+    }
+
+    .side-card{
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      background: var(--card2);
+    }
+
+    .side-label{
+      color: rgba(231,236,255,0.75);
+      font-weight:800;
+      letter-spacing:0.6px;
+      font-size:13px;
+    }
+
+    .state-badge{
+      width:100%;
+      border-radius:14px;
+      padding:12px 14px;
+      margin-top:8px;
+      text-align:center;
+      font-size:28px;
+      font-weight:900;
+      letter-spacing:1px;
+      border:1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.25);
+    }
+
+    .kv{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:8px 10px;
+      align-items:center;
+      color: var(--muted);
+      font-size:13px;
+    }
+    .kv .v{color: var(--text); font-weight:700; text-align:right; min-width:110px;}
+
+    .hr{
+      height:1px;
+      background: rgba(255,255,255,0.08);
+      margin:10px 0 0;
+    }
+
+    .barwrap{margin-top:8px;}
+    .bar{
+      height:10px;
+      border-radius:999px;
+      background: rgba(255,255,255,0.10);
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.06);
+    }
+    .bar .fill{height:100%; width:0%; background: linear-gradient(90deg, var(--ok), var(--warn), var(--danger));}
+
+    .miniTitleRow{
+      display:flex; justify-content:space-between; align-items:center;
+      margin-top:10px;
+      color: rgba(231,236,255,0.75);
+      font-weight:800;
+      letter-spacing:0.6px;
+      font-size:13px;
+    }
+    .miniGrid{
+      margin-top:8px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:8px;
+    }
+    .miniLine{
+      display:grid;
+      grid-template-columns: 56px 1fr 74px;
+      gap:10px;
+      align-items:center;
+      color: var(--muted);
+      font-size:13px;
+    }
+    .miniLine .k{font-weight:800; color: rgba(231,236,255,0.75);}
+    .miniLine .val{color: var(--text); font-weight:800; text-align:right;}
+
+    .adviceBox{
+      margin-top:4px;
+      border:1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.22);
+      border-radius: 14px;
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .adviceLabel{color: var(--muted); font-size:13px; font-weight:800; letter-spacing:0.4px;}
+    .adviceValue{
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:0.8px;
+      padding:6px 10px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.22);
+    }
+
+    .note{
+      margin-top:auto;
+      color: rgba(231,236,255,0.55);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    /* Bottom-right single status box */
+    .statusDock{
+      position:fixed;
+      right:18px;
+      bottom:16px;
+      z-index:60;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,0.12);
+      background: rgba(10,12,18,0.82);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      min-width: 260px;
+      max-width: 320px;
+    }
+    .statusPill{
+      padding:10px 12px;
+      border-radius:14px;
+      font-weight:900;
+      letter-spacing:0.8px;
+      border:1px solid rgba(255,255,255,0.10);
+      min-width:96px;
+      text-align:center;
+      background: rgba(0,0,0,0.25);
+    }
+    .statusMeta{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      flex:1;
+      min-width:0;
+    }
+    .statusMeta .row1{
+      display:flex; justify-content:space-between; gap:10px;
+      font-weight:800;
+    }
+    .statusMeta .row2{
+      display:flex; justify-content:space-between; gap:10px;
+      color: var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .blinkRed{
+      animation: blink 0.9s infinite;
+      border-color: rgba(255,59,59,0.55) !important;
+      box-shadow: 0 0 0 2px rgba(255,59,59,0.18) inset, 0 0 26px rgba(255,59,59,0.18);
+    }
+    @keyframes blink{
+      0%,50%{filter:none; transform:none;}
+      51%,100%{filter: brightness(1.08); transform: translateY(-1px);}
+    }
+
+    /* Responsive */
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr;}
+      .rightTop{min-width:unset; width:100%;}
+      .title .brand{font-size:34px;}
+      .statusDock{right:12px; bottom:12px;}
     }
   </style>
 </head>
 
 <body>
-<div class="app">
-  <div class="topbar">
-    <div class="titleWrap">
-      <div class="title">LIMES MS — <span id="titleTicker">XAUUSD</span></div>
-      <div class="subtitle">Daily Close | Forecast vs Actual (+1D)</div>
-    </div>
-
-    <div class="rightTop">
-      <div class="searchRow">
-        <input id="tickerInput" class="tickerInput" list="tickers" placeholder="Type ticker (e.g., NVDA, BTC-USD, CPALL.BK)" value="XAUUSD" />
-        <datalist id="tickers">
-          <option value="XAUUSD"></option>
-          <option value="GC=F"></option>
-          <option value="SI=F"></option>
-
-          <option value="AGNC"></option>
-          <option value="JEPQ"></option>
-          <option value="NVDA"></option>
-          <option value="SCHD"></option>
-          <option value="TSLA"></option>
-          <option value="GOOGL"></option>
-          <option value="AMD"></option>
-          <option value="JNJ"></option>
-          <option value="VOO"></option>
-          <option value="QQQ"></option>
-
-          <option value="BTC-USD"></option>
-          <option value="ETH-USD"></option>
-          <option value="SOL-USD"></option>
-
-          <option value="CPALL.BK"></option>
-          <option value="PTT.BK"></option>
-          <option value="DELTA.BK"></option>
-          <option value="AOT.BK"></option>
-
-          <!-- ถ้าคุณอยากมี "MAG7" แนะนำใช้ ETF ที่มีอยู่จริง เช่น MAGS -->
-          <option value="MAGS"></option>
-        </datalist>
-
-        <button id="loadBtn" class="btn">Load</button>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="title">
+        <div class="brand" id="brandTitle">LIMES MS — XAUUSD</div>
+        <div class="subtitle">Daily Close | Forecast vs Actual (+1D)</div>
       </div>
 
-      <div id="stamp">--</div>
-      <div id="loadedMeta" class="loadedMeta">Loaded: --</div>
-    </div>
-  </div>
-
-  <div class="grid">
-    <!-- LEFT: chart -->
-    <div class="panel chartPanel">
-      <div class="legend">
-        <span><span class="dot price"></span>Price</span>
-        <span><span class="dot mid"></span>Phase / Mid (MA3)</span>
-        <span><span class="dot band"></span>Upper / Lower (±2σ)</span>
-        <span><span class="dot today"></span>Today (0)</span>
-      </div>
-
-      <div class="chartWrap">
-        <canvas id="chart"></canvas>
-      </div>
-    </div>
-
-    <!-- RIGHT: state -->
-    <div class="panel side">
-      <div class="cardTitle">STATE</div>
-      <div id="stateBadge" class="badge">--</div>
-
-      <div class="kv"><div class="k">Day 0 ref (04:00 TH)</div><div class="v" id="day0ref">--</div></div>
-      <div class="kv"><div class="k">Latest (15m)</div><div class="v" id="latest15">--</div></div>
-      <div class="kv"><div class="k">Forecast (+1D)</div><div class="v" id="fc1d">--</div></div>
-      <div class="kv"><div class="k">Slope</div><div class="v" id="slope">--</div></div>
-
-      <div class="barWrap">
-        <div class="kv"><div class="k">Human Risk Index</div><div class="v"><span id="riskScore">--</span> / 5</div></div>
-        <div class="bar">
-          <div id="riskNeedle" class="barNeedle" style="left:0%"></div>
+      <div class="rightTop">
+        <div class="searchRow">
+          <div class="searchBox">
+            <input id="sym" placeholder="พิมพ์ ticker เช่น XAUUSD, NVDA, BTC-USD, PTT.BK" autocomplete="off" />
+            <div class="dd" id="dd"></div>
+          </div>
+          <button id="loadBtn">Load</button>
         </div>
+        <div class="stamp" id="stamp">--</div>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card chart-card">
+        <div class="chart-head">
+          <div class="legend">
+            <span><span class="dot price"></span>Price</span>
+            <span><span class="dot mid"></span>Phase / Mid (MA3)</span>
+            <span><span class="dot band"></span>Upper / Lower (±2σ)</span>
+            <span><span class="dot today"></span>Today (0)</span>
+          </div>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="chart" height="360"></canvas>
+        </div>
+      </section>
+
+      <aside class="card side-card">
+        <div>
+          <div class="side-label">STATE</div>
+          <div class="state-badge" id="stateBadge">WAITING</div>
+
+          <div class="kv">
+            <div class="k">Day 0 ref (04:00 TH)</div><div class="v" id="day0">--</div>
+            <div class="k">Latest (15m)</div><div class="v" id="latest">--</div>
+            <div class="k">Forecast (+1D)</div><div class="v" id="pred">--</div>
+            <div class="k">Slope</div><div class="v" id="slope">--</div>
+            <div class="k">Z (vs band)</div><div class="v" id="zscore">--</div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="kv">
+            <div class="k">Risk score</div><div class="v"><span id="riskScore">--</span> / 5</div>
+          </div>
+          <div class="barwrap">
+            <div class="bar" id="riskBar"><div class="fill" id="riskFill"></div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="miniTitleRow">
+            <div>MONITOR (trend)</div>
+            <div id="monitorState" style="color:rgba(231,236,255,0.75); font-weight:900;">--</div>
+          </div>
+          <div class="miniGrid">
+            <div class="miniLine">
+              <div class="k">15m</div>
+              <div>แรงต่อวัน (est.)</div>
+              <div class="val" id="m15">--</div>
+            </div>
+            <div class="miniLine">
+              <div class="k">30m</div>
+              <div>แรงต่อวัน (est.)</div>
+              <div class="val" id="m30">--</div>
+            </div>
+            <div class="miniLine">
+              <div class="k">60m</div>
+              <div>แรงต่อวัน (est.)</div>
+              <div class="val" id="m60">--</div>
+            </div>
+            <div class="miniLine">
+              <div class="k">90m</div>
+              <div>แรงต่อวัน (est.)</div>
+              <div class="val" id="m90">--</div>
+            </div>
+            <div class="miniLine">
+              <div class="k">120m</div>
+              <div>แรงต่อวัน (est.)</div>
+              <div class="val" id="m120">--</div>
+            </div>
+          </div>
+
+          <div class="adviceBox">
+            <div class="adviceLabel">ADVICE</div>
+            <div class="adviceValue" id="advice">--</div>
+          </div>
+        </div>
+
+        <div class="note">
+          Data source: local JSON in <b>data/</b> (generated by GitHub Actions/yfinance).<br/>
+          Auto-complete uses Yahoo search API (ถ้าโดน CORS บางเครื่องจะ fallback เป็นรายการในเครื่อง)
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Bottom-right single summary -->
+  <div class="statusDock" id="statusDock">
+    <div class="statusPill" id="statusPill">WAIT</div>
+    <div class="statusMeta">
+      <div class="row1">
+        <div id="dockSym" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">--</div>
+        <div id="dockScore">--/5</div>
+      </div>
+      <div class="row2">
+        <div id="dockAdvice">Advice: --</div>
+        <div id="dockTime">--</div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Floating single status bottom-right -->
-<div class="floating" id="floating">
-  <div class="floatingTop">
-    <div id="pill" class="pill">--</div>
-    <div style="font-weight:900;color:#e8eefc;white-space:nowrap" id="pillTicker">XAUUSD</div>
-  </div>
-  <div class="floatingSub">
-    <div>Risk score: <span id="pillScore">--</span>/5</div>
-    <div id="pillTime">--</div>
-  </div>
-</div>
+<script>
+/* =========================
+   Utilities
+========================= */
+const TH_TZ = "Asia/Bangkok";
+function fmtTH(dt){
+  return new Intl.DateTimeFormat("th-TH", {
+    timeZone: TH_TZ,
+    year:"numeric", month:"short", day:"2-digit",
+    hour:"2-digit", minute:"2-digit"
+  }).format(dt);
+}
+function fmtTHShort(dt){
+  return new Intl.DateTimeFormat("th-TH", {
+    timeZone: TH_TZ,
+    month:"2-digit", day:"2-digit"
+  }).format(dt);
+}
+function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+function round2(x){ return Math.round(x*100)/100; }
+function isNum(x){ return Number.isFinite(x); }
 
-<script src="script.js"></script>
+function setStamp(){
+  const now = new Date();
+  document.getElementById("stamp").textContent = fmtTH(now) + " (UTC+7)";
+  document.getElementById("dockTime").textContent = new Intl.DateTimeFormat("th-TH", {
+    timeZone: TH_TZ, hour:"2-digit", minute:"2-digit"
+  }).format(now);
+}
+setInterval(setStamp, 1000 * 10);
+setStamp();
+
+/* =========================
+   Chart
+========================= */
+let chart;
+function makeChart(){
+  const ctx = document.getElementById("chart").getContext("2d");
+  chart = new Chart(ctx, {
+    type:"line",
+    data:{
+      labels:[],
+      datasets:[
+        {
+          label:"Price",
+          data:[],
+          borderColor:"#D8A23D",
+          backgroundColor:"rgba(216,162,61,0.12)",
+          borderWidth:2.2,
+          pointRadius:2.4,
+          pointHoverRadius:3.6,
+          tension:0.25
+        },
+        {
+          label:"Phase / Mid (MA3)",
+          data:[],
+          borderColor:"#62B5FF",
+          borderWidth:2,
+          pointRadius:0,
+          tension:0.25,
+          borderDash:[4,4]
+        },
+        {
+          label:"Upper (+2σ)",
+          data:[],
+          borderColor:"rgba(110,134,168,0.9)",
+          borderWidth:2,
+          pointRadius:0,
+          tension:0.25
+        },
+        {
+          label:"Lower (-2σ)",
+          data:[],
+          borderColor:"rgba(110,134,168,0.9)",
+          borderWidth:2,
+          pointRadius:0,
+          tension:0.25
+        },
+        {
+          label:"Forecast (+1D)",
+          data:[],
+          borderColor:"rgba(255,200,97,0.95)",
+          borderWidth:2,
+          pointRadius:0,
+          tension:0.25,
+          borderDash:[6,5]
+        }
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:(ctx)=>{
+              const v = ctx.parsed.y;
+              return `${ctx.dataset.label}: ${isNum(v) ? v.toFixed(2) : "-"}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          ticks:{
+            color:"rgba(231,236,255,0.55)",
+            maxRotation:0,
+            autoSkip:true,
+            maxTicksLimit:9
+          },
+          grid:{color:"rgba(255,255,255,0.06)"}
+        },
+        y:{
+          ticks:{color:"rgba(231,236,255,0.55)"},
+          grid:{color:"rgba(255,255,255,0.06)"}
+        }
+      }
+    }
+  });
+}
+makeChart();
+
+/* =========================
+   Data loading helpers
+   Expect files:
+     data/<symbol>_daily.json
+     data/<symbol>_15m.json
+   where <symbol> is lowercased and "." replaced with "_" and "-" kept
+========================= */
+function symToFileBase(sym){
+  return sym.trim().toLowerCase().replaceAll(".","_");
+}
+async function fetchJSON(path){
+  const r = await fetch(path, {cache:"no-store"});
+  if(!r.ok) throw new Error(`HTTP ${r.status} for ${path}`);
+  return await r.json();
+}
+
+/* =========================
+   Indicators
+========================= */
+function ma(arr, win){
+  const out = new Array(arr.length).fill(null);
+  for(let i=0;i<arr.length;i++){
+    if(i+1<win) continue;
+    let s=0;
+    for(let k=i-win+1;k<=i;k++) s+=arr[k];
+    out[i]=s/win;
+  }
+  return out;
+}
+function std(arr){
+  const xs = arr.filter(v=>isNum(v));
+  const n = xs.length;
+  if(n<2) return 0;
+  const m = xs.reduce((a,b)=>a+b,0)/n;
+  const v = xs.reduce((a,b)=>a+(b-m)*(b-m),0)/(n-1);
+  return Math.sqrt(v);
+}
+function linregSlopePctPerDay(prices){
+  // simple slope from last N prices: (last-first)/first / days
+  const n = prices.length;
+  if(n<2) return 0;
+  const first = prices[0], last = prices[n-1];
+  const days = n-1;
+  if(!isNum(first) || first===0) return 0;
+  return ((last-first)/first)*100 / days;
+}
+
+/* Risk mapping:
+   - slope close 0 (<=5%/day) => low risk
+   - 5-10 => mid
+   - 10-15 => high
+   - >15 => extreme (blink red)
+*/
+function slopeToRisk(absSlopePctPerDay){
+  if(absSlopePctPerDay <= 5)  return (absSlopePctPerDay/5) * 1.5;                 // 0..1.5
+  if(absSlopePctPerDay <= 10) return 1.5 + ((absSlopePctPerDay-5)/5) * 1.5;        // 1.5..3
+  if(absSlopePctPerDay <= 15) return 3.0 + ((absSlopePctPerDay-10)/5) * 1.0;       // 3..4
+  return 4.0 + clamp((absSlopePctPerDay-15)/10, 0, 1) * 1.0;                       // 4..5
+}
+function zToRisk(absZ){
+  // absZ 0..2 => 0..5
+  return clamp((absZ/2)*5, 0, 5);
+}
+
+/* =========================
+   Monitor 15/30/60/90/120 mins
+   Compute "pct/day equivalent" from 15m closes
+========================= */
+function pctPerDayFromWindow(closes, bars){
+  if(closes.length < bars+1) return null;
+  const a = closes[closes.length-bars-1];
+  const b = closes[closes.length-1];
+  if(!isNum(a) || a===0 || !isNum(b)) return null;
+  const pct = ((b-a)/a)*100;
+  const minutes = bars * 15;
+  const days = minutes / (60*24);
+  return pct / days; // % per day equivalent
+}
+function monitorStateFromWindows(vals){
+  // vals is array of pct/day, some may be null
+  const xs = vals.filter(v=>isNum(v));
+  if(xs.length<2) return {state:"WAITING", flagHigh:false};
+
+  const absMax = Math.max(...xs.map(v=>Math.abs(v)));
+  const sameDir = xs.every(v=>v>0) || xs.every(v=>v<0);
+
+  // "ลู่เข้า/เร่งแรงต่อเนื่อง": same direction + absMax high OR accelerating
+  let accelerating = false;
+  // check increasing abs with longer windows: 15<30<60<90<120 (rough)
+  // if abs tends to grow -> acceleration
+  const order = vals.map(v=>isNum(v)?Math.abs(v):null).filter(v=>v!==null);
+  if(order.length>=3){
+    let up=0;
+    for(let i=1;i<order.length;i++) if(order[i] >= order[i-1]) up++;
+    accelerating = (up >= order.length-1);
+  }
+
+  const flagHigh = (absMax >= 15) || (sameDir && absMax >= 12) || (sameDir && accelerating && absMax >= 10);
+
+  if(flagHigh) return {state:"HIGH RISK", flagHigh:true};
+  if(absMax >= 10) return {state:"WATCH", flagHigh:false};
+  return {state:"OK", flagHigh:false};
+}
+
+/* =========================
+   UI helpers
+========================= */
+function setBadge(text, mode){
+  const el = document.getElementById("stateBadge");
+  el.textContent = text;
+
+  // reset
+  el.style.color = "var(--text)";
+  el.style.borderColor = "rgba(255,255,255,0.10)";
+  el.style.background = "rgba(0,0,0,0.22)";
+  el.classList.remove("blinkRed");
+
+  if(mode==="BUY"){
+    el.style.color = "var(--ok)";
+    el.style.borderColor = "rgba(43,217,127,0.35)";
+    el.style.background = "rgba(43,217,127,0.10)";
+  }else if(mode==="WATCH"){
+    el.style.color = "var(--warn)";
+    el.style.borderColor = "rgba(247,184,75,0.35)";
+    el.style.background = "rgba(247,184,75,0.10)";
+  }else if(mode==="HIGH"){
+    el.style.color = "var(--danger)";
+    el.style.borderColor = "rgba(255,59,59,0.45)";
+    el.style.background = "rgba(255,59,59,0.12)";
+    el.classList.add("blinkRed");
+  }
+}
+
+function setDock(sym, state, score, advice, blink){
+  document.getElementById("dockSym").textContent = sym;
+  document.getElementById("dockScore").textContent = `${score.toFixed(2)}/5`;
+  document.getElementById("dockAdvice").textContent = `Advice: ${advice}`;
+
+  const pill = document.getElementById("statusPill");
+  pill.textContent = state;
+
+  pill.style.color = "var(--text)";
+  pill.style.borderColor = "rgba(255,255,255,0.12)";
+  pill.style.background = "rgba(0,0,0,0.25)";
+
+  const dock = document.getElementById("statusDock");
+  dock.classList.remove("blinkRed");
+
+  if(state==="BUY"){
+    pill.style.color = "var(--ok)";
+    pill.style.borderColor = "rgba(43,217,127,0.35)";
+    pill.style.background = "rgba(43,217,127,0.10)";
+  }else if(state==="WATCH"){
+    pill.style.color = "var(--warn)";
+    pill.style.borderColor = "rgba(247,184,75,0.35)";
+    pill.style.background = "rgba(247,184,75,0.10)";
+  }else if(state==="HIGH RISK"){
+    pill.style.color = "var(--danger)";
+    pill.style.borderColor = "rgba(255,59,59,0.45)";
+    pill.style.background = "rgba(255,59,59,0.12)";
+  }
+
+  if(blink) dock.classList.add("blinkRed");
+}
+
+function setRiskUI(score){
+  document.getElementById("riskScore").textContent = score.toFixed(2);
+  const w = clamp((score/5)*100, 0, 100);
+  document.getElementById("riskFill").style.width = w + "%";
+}
+
+function setAdvice(advice){
+  const el = document.getElementById("advice");
+  el.textContent = advice;
+  el.style.color = "var(--text)";
+  el.style.borderColor = "rgba(255,255,255,0.12)";
+  el.style.background = "rgba(0,0,0,0.22)";
+
+  if(advice==="BUY"){
+    el.style.color = "var(--ok)";
+    el.style.borderColor = "rgba(43,217,127,0.35)";
+    el.style.background = "rgba(43,217,127,0.10)";
+  }else if(advice==="HOLD"){
+    el.style.color = "var(--warn)";
+    el.style.borderColor = "rgba(247,184,75,0.35)";
+    el.style.background = "rgba(247,184,75,0.10)";
+  }else if(advice==="SELL"){
+    el.style.color = "var(--danger)";
+    el.style.borderColor = "rgba(255,59,59,0.45)";
+    el.style.background = "rgba(255,59,59,0.12)";
+  }
+}
+
+/* =========================
+   Core load + compute
+========================= */
+async function loadSymbol(sym){
+  const clean = sym.trim();
+  if(!clean) return;
+
+  const base = symToFileBase(clean);
+  const dailyPath = `data/${base}_daily.json`;
+  const m15Path   = `data/${base}_15m.json`;
+
+  // UI pre
+  document.getElementById("brandTitle").textContent = `LIMES MS — ${clean.toUpperCase()}`;
+  setBadge("LOADING", "WATCH");
+  setDock(clean.toUpperCase(), "WAIT", 0, "--", false);
+
+  let daily, m15;
+  try{
+    [daily, m15] = await Promise.all([fetchJSON(dailyPath), fetchJSON(m15Path)]);
+  }catch(e){
+    setBadge("WAITING", "WATCH");
+    setAdvice("--");
+    setRiskUI(0);
+    setDock(clean.toUpperCase(), "WAIT", 0, "--", false);
+    alert(`หาไฟล์ข้อมูลไม่เจอสำหรับ ${clean}\nต้องมี:\n- ${dailyPath}\n- ${m15Path}\n\n(ตัวหน้าเว็บพร้อมแล้ว แต่ backend ต้องสร้าง JSON ให้ symbol นี้ก่อน)`);
+    return;
+  }
+
+  const tD = daily.timestamps || [];
+  const cD = daily.close || [];
+  const t15 = m15.timestamps || [];
+  const c15 = m15.close || [];
+
+  // basic guards
+  if(cD.length < 10 || c15.length < 10){
+    setBadge("WAITING", "WATCH");
+    setAdvice("--");
+    setRiskUI(0);
+    setDock(clean.toUpperCase(), "WAIT", 0, "--", false);
+    alert(`ข้อมูลไม่พอสำหรับ ${clean} (JSON ยังว่าง/สั้นเกินไป)`);
+    return;
+  }
+
+  // Use last 40 days for chart
+  const N = 40;
+  const start = Math.max(0, cD.length - N);
+  const closes = cD.slice(start);
+  const ts = tD.slice(start);
+
+  // X labels as TH month/day
+  const labels = ts.map(x=>{
+    const dt = new Date(x);
+    return fmtTHShort(dt);
+  });
+
+  const mid = ma(closes, 3);
+  const midValid = mid.filter(v=>isNum(v));
+  const recentStd = std(closes.slice(Math.max(0, closes.length-20))); // short vol
+  const upper = mid.map(v=>isNum(v)? v + 2*recentStd : null);
+  const lower = mid.map(v=>isNum(v)? v - 2*recentStd : null);
+
+  // Forecast: simple continuation from last 10 days slope
+  const last10 = closes.slice(Math.max(0, closes.length-10));
+  const slopePctDay = linregSlopePctPerDay(last10);
+  const last = closes[closes.length-1];
+  const forecast = last * (1 + (slopePctDay/100)); // +1 day
+
+  // z-score vs band/mid
+  const lastMid = mid[closes.length-1];
+  const z = (isNum(lastMid) && recentStd>0) ? (last - lastMid)/recentStd : 0;
+
+  // Monitor windows from 15m
+  const w15  = pctPerDayFromWindow(c15, 1);
+  const w30  = pctPerDayFromWindow(c15, 2);
+  const w60  = pctPerDayFromWindow(c15, 4);
+  const w90  = pctPerDayFromWindow(c15, 6);
+  const w120 = pctPerDayFromWindow(c15, 8);
+
+  const mon = monitorStateFromWindows([w15,w30,w60,w90,w120]);
+
+  document.getElementById("m15").textContent  = isNum(w15)  ? `${round2(w15)}%/day`  : "--";
+  document.getElementById("m30").textContent  = isNum(w30)  ? `${round2(w30)}%/day`  : "--";
+  document.getElementById("m60").textContent  = isNum(w60)  ? `${round2(w60)}%/day`  : "--";
+  document.getElementById("m90").textContent  = isNum(w90)  ? `${round2(w90)}%/day`  : "--";
+  document.getElementById("m120").textContent = isNum(w120) ? `${round2(w120)}%/day` : "--";
+  document.getElementById("monitorState").textContent = mon.state;
+
+  // Risk score combine: slope + z + monitor high bump
+  const slopeRisk = slopeToRisk(Math.abs(slopePctDay));
+  const zRisk = zToRisk(Math.abs(z));
+  let score = 0.6*slopeRisk + 0.4*zRisk;
+
+  if(mon.flagHigh) score = Math.max(score, 4.2);
+  score = clamp(score, 0, 5);
+
+  // State + Advice logic (simple, readable)
+  let state = "WATCH";
+  let advice = "HOLD";
+  let blink = false;
+
+  if(score >= 4.0){
+    state = "HIGH RISK";
+    advice = "SELL";
+    blink = true;
+  }else if(score <= 2.2){
+    state = "BUY";
+    advice = (slopePctDay >= 0 ? "BUY" : "HOLD");
+  }else{
+    state = "WATCH";
+    advice = "HOLD";
+  }
+
+  // If slope is very negative extreme => still high risk
+  if(Math.abs(slopePctDay) >= 15){
+    state = "HIGH RISK";
+    advice = "SELL";
+    blink = true;
+    score = Math.max(score, 4.3);
+  }
+
+  // Update right panel
+  const day0 = new Date(ts[ts.length-1]);
+  // show 04:00 TH label as requested (visual only)
+  const day0Label = new Intl.DateTimeFormat("th-TH", {timeZone:TH_TZ, year:"numeric", month:"short", day:"2-digit"}).format(day0) + " 04:00";
+  document.getElementById("day0").textContent = day0Label;
+
+  const last15 = c15[c15.length-1];
+  const t15last = new Date(t15[t15.length-1]);
+  document.getElementById("latest").textContent = `${last15.toFixed(2)} (${new Intl.DateTimeFormat("th-TH",{timeZone:TH_TZ, hour:"2-digit", minute:"2-digit"}).format(t15last)})`;
+  document.getElementById("pred").textContent = isNum(forecast) ? forecast.toFixed(2) : "--";
+  document.getElementById("slope").textContent = `${(slopePctDay>=0?"+":"")}${round2(slopePctDay)}%/day`;
+  document.getElementById("zscore").textContent = (isNum(z) ? `${(z>=0?"+":"")}${round2(z)}` : "--");
+
+  setRiskUI(score);
+  setAdvice(advice);
+
+  if(state==="BUY") setBadge("BUY","BUY");
+  if(state==="WATCH") setBadge("WATCH","WATCH");
+  if(state==="HIGH RISK") setBadge("HIGH RISK","HIGH");
+
+  setDock(clean.toUpperCase(), state, score, advice, blink);
+
+  // Update chart datasets
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = closes;
+  chart.data.datasets[1].data = mid;
+  chart.data.datasets[2].data = upper;
+  chart.data.datasets[3].data = lower;
+
+  // Forecast dataset: show last point + forecast as +1 label
+  const f = new Array(closes.length).fill(null);
+  f[closes.length-1] = last;
+  f.push(forecast);
+  const fLabels = [...labels, "+1D"];
+  chart.data.labels = fLabels;
+  chart.data.datasets[0].data = [...closes, null];
+  chart.data.datasets[1].data = [...mid, null];
+  chart.data.datasets[2].data = [...upper, null];
+  chart.data.datasets[3].data = [...lower, null];
+  chart.data.datasets[4].data = f;
+
+  chart.update();
+}
+
+/* =========================
+   Auto-complete (Yahoo)
+   endpoint: https://query1.finance.yahoo.com/v1/finance/search?q=...
+   If blocked by CORS => fallback list
+========================= */
+const fallbackList = [
+  "XAUUSD","GC=F","SI=F","BTC-USD","ETH-USD",
+  "AGNC","JEPQ","NVDA","SCHD","TSLA","GOOGL","AMD","JNJ","VOO","QQQ",
+  "AAPL","MSFT","AMZN","META",
+  "PTT.BK","CPALL.BK","AOT.BK","ADVANC.BK","KBANK.BK"
+];
+
+let ddTimer=null;
+async function yahooSearch(q){
+  const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=6&newsCount=0`;
+  const r = await fetch(url);
+  if(!r.ok) throw new Error("yahoo search failed");
+  const j = await r.json();
+  const quotes = (j.quotes || []).slice(0,6);
+  return quotes.map(x=>({
+    symbol: x.symbol,
+    name: x.shortname || x.longname || x.quoteType || ""
+  })).filter(x=>x.symbol);
+}
+function showDD(items){
+  const dd = document.getElementById("dd");
+  dd.innerHTML = "";
+  if(!items.length){ dd.style.display="none"; return; }
+  for(const it of items){
+    const div = document.createElement("div");
+    div.className="item";
+    div.innerHTML = `<div class="l">${it.symbol}</div><div class="r">${it.name || ""}</div>`;
+    div.addEventListener("click", ()=>{
+      document.getElementById("sym").value = it.symbol;
+      dd.style.display="none";
+      loadSymbol(it.symbol);
+    });
+    dd.appendChild(div);
+  }
+  dd.style.display="block";
+}
+function hideDD(){ document.getElementById("dd").style.display="none"; }
+
+document.getElementById("sym").addEventListener("input", (e)=>{
+  const q = e.target.value.trim();
+  if(ddTimer) clearTimeout(ddTimer);
+  if(q.length<2){ hideDD(); return; }
+
+  ddTimer = setTimeout(async ()=>{
+    try{
+      const items = await yahooSearch(q);
+      if(items.length) return showDD(items);
+      // fallback filter
+      const f = fallbackList.filter(s=>s.toLowerCase().includes(q.toLowerCase())).slice(0,6).map(s=>({symbol:s,name:""}));
+      showDD(f);
+    }catch{
+      const f = fallbackList.filter(s=>s.toLowerCase().includes(q.toLowerCase())).slice(0,6).map(s=>({symbol:s,name:""}));
+      showDD(f);
+    }
+  }, 220);
+});
+
+document.addEventListener("click", (e)=>{
+  if(!document.querySelector(".searchBox").contains(e.target)) hideDD();
+});
+
+document.getElementById("loadBtn").addEventListener("click", ()=>{
+  const sym = document.getElementById("sym").value.trim();
+  loadSymbol(sym || "XAUUSD");
+});
+document.getElementById("sym").addEventListener("keydown", (e)=>{
+  if(e.key==="Enter"){
+    hideDD();
+    const sym = document.getElementById("sym").value.trim();
+    loadSymbol(sym || "XAUUSD");
+  }
+});
+
+/* =========================
+   Boot
+========================= */
+document.getElementById("sym").value = "XAUUSD";
+loadSymbol("XAUUSD");
+</script>
 </body>
 </html>
