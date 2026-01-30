@@ -1,415 +1,310 @@
-/* LIMES MS — dashboard script (v1.2)
-   - ✅ Thai time top-right
-   - ✅ X-axis shows real dates (not long labels)
-   - ✅ Prevent horizontal overflow
-   - ✅ Bottom-right single status toast with blinking HIGH RISK
-   - ✅ Risk: slope near 0 low, |slope| > 10%/day => HIGH RISK
+/* LIMES MS Dashboard — multi-asset (static JSON loader)
+   Expects:
+     data/<tickerLower>_daily.json  => { timestamps:[], close:[] }
+     data/<tickerLower>_15m.json    => { timestamps:[], close:[] }
 */
 
-const TZ = "Asia/Bangkok";
-
-// ------- DOM -------
-const el = (id) => document.getElementById(id);
-
-const stamp = el("stamp");
-const brandTitle = el("brandTitle");
-const symbolInput = el("symbolInput");
-const btnLoad = el("btnLoad");
-
-const stateBadge = el("stateBadge");
-const day0El = el("day0");
-const latestEl = el("latest");
-const predEl = el("pred");
-const slopeEl = el("slope");
-
-const humanRiskEl = el("humanRisk");
-const humanBar = el("humanBar");
-
-const dayState = el("dayState");
-const dFill = el("dFill");
-const h2Fill = el("h2Fill");
-const h1Fill = el("h1Fill");
-const dScore = el("dScore");
-const h2Score = el("h2Score");
-const h1Score = el("h1Score");
-const dArrow = el("dArrow");
-const h2Arrow = el("h2Arrow");
-const h1Arrow = el("h1Arrow");
-
-const statusToast = el("statusToast");
-const toastPill = el("toastPill");
-const toastTitle = el("toastTitle");
-const toastSub = el("toastSub");
-
-// ------- Helpers -------
-function fmtThaiNow() {
-  const d = new Date();
-  const fmt = new Intl.DateTimeFormat("th-TH", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return fmt.format(d) + " (UTC+7)";
-}
-
-function fmtThaiDateFromISO(iso) {
-  // iso: "2026-01-30T..." or "2026-01-30"
-  const dt = new Date(iso);
-  const fmt = new Intl.DateTimeFormat("th-TH", {
-    timeZone: TZ,
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return fmt.format(dt);
-}
-
-function fmtShortX(iso) {
-  // แกนนอนให้สั้น: "30/01"
-  const dt = new Date(iso);
-  const fmt = new Intl.DateTimeFormat("th-TH", {
-    timeZone: TZ,
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return fmt.format(dt);
-}
-
-function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
-
-function setBar(fillEl, score5) {
-  const pct = clamp((score5 / 5) * 100, 0, 100);
-  fillEl.style.width = pct.toFixed(0) + "%";
-}
-
-function arrowFromSlope(slopePctPerDay) {
-  if (slopePctPerDay > 0.25) return "↗";
-  if (slopePctPerDay < -0.25) return "↘";
-  return "→";
-}
-
-// ------- Risk model (ตามที่คุย: ใกล้ 0 ต่ำ, ชันมากทั้ง +/- = high risk) -------
-// LOW: |slope| <= 5%/day
-// WATCH: 5–10%/day
-// HIGH RISK: > 10%/day  (กระพริบแดง)
-function riskFromSlopeAndZ(absSlopePctPerDay, absZ) {
-  // slope component: 0..5 where 10% -> 5
-  const slopeScore = clamp((absSlopePctPerDay / 10) * 5, 0, 5);
-
-  // z component: 0..5 where z=2 -> 5
-  const zScore = clamp((absZ / 2) * 5, 0, 5);
-
-  // final uses the worse one (ปลอดภัยสุด)
-  const final = Math.max(slopeScore, zScore);
-
-  let state = "BUY";
-  if (final >= 3.2) state = "HIGH RISK";
-  else if (final >= 1.8) state = "WATCH";
-  else state = "BUY";
-
-  // force HIGH RISK if slope very steep
-  if (absSlopePctPerDay > 10) state = "HIGH RISK";
-
-  return { score: final, state, slopeScore, zScore };
-}
-
-function paintState(state, score) {
-  // side badge (ใช้ class เดิมจาก style.css ถ้ามี)
-  stateBadge.textContent = state;
-
-  // toast
-  statusToast.style.display = "flex";
-  toastPill.textContent = state;
-  toastTitle.textContent = (currentSymbol || "—") + " — " + state;
-  toastSub.textContent = `Risk score: ${score.toFixed(2)}/5`;
-
-  // reset classes
-  toastPill.classList.remove("toast-buy", "toast-watch", "toast-risk");
-  statusToast.classList.remove("blink-red");
-
-  if (state === "BUY") toastPill.classList.add("toast-buy");
-  if (state === "WATCH") toastPill.classList.add("toast-watch");
-  if (state === "HIGH RISK") {
-    toastPill.classList.add("toast-risk");
-    statusToast.classList.add("blink-red"); // ✅ กระพริบ
-  }
-
-  dayState.textContent = state;
-}
-
-// ------- Chart -------
 let chart;
-let currentSymbol = "XAUUSD";
 
-function ensureChart() {
-  if (chart) return chart;
+const DEFAULT_TICKER = "XAUUSD";
+const WINDOW_DAYS = 40;        // keep “old look”: last 40 trading days-ish
+const MA = 3;
 
-  const ctx = el("chart").getContext("2d");
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: [],
-      datasets: [
-        { label: "Price", data: [], borderWidth: 2, pointRadius: 2, tension: 0.25 },
-        { label: "MA3", data: [], borderWidth: 2, pointRadius: 0, borderDash: [4,4], tension: 0.25 },
-        { label: "Upper", data: [], borderWidth: 2, pointRadius: 0, tension: 0.25 },
-        { label: "Lower", data: [], borderWidth: 2, pointRadius: 0, tension: 0.25 },
-        { label: "Forecast+1D", data: [], borderWidth: 2, pointRadius: 0, borderDash: [6,3], tension: 0.25 },
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false, // ✅ ใช้ความสูงจาก CSS
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: { enabled: true }
-      },
-      scales: {
-        x: {
-          ticks: {
-            autoSkip: true,
-            maxTicksLimit: 9, // ✅ ลดจำนวน tick เพื่อไม่ให้ยาวล้น
-            callback: (val, idx) => {
-              const label = chart.data.labels?.[idx];
-              return label ?? "";
-            }
-          },
-          grid: { display: true }
-        },
-        y: {
-          ticks: { maxTicksLimit: 7 },
-          grid: { display: true }
-        }
-      }
-    }
-  });
+// slope thresholds (%/day) for risk classification
+const SLOPE_LOW = 5;           // |slope%/day| <= 5  => low risk
+const SLOPE_HIGH = 12;         // |slope%/day| >= 12 => high risk (flash red)
 
-  return chart;
+function fmtThaiNow(d = new Date()) {
+  const opt = { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit", timeZone:"Asia/Bangkok" };
+  return new Intl.DateTimeFormat("th-TH", opt).format(d) + " (UTC+7)";
 }
 
-// ------- Data load -------
-// คาดว่าไฟล์ใน repo เป็นรูปแบบเดิม: data/<symbolLower>_daily.json และ data/<symbolLower>_15m.json
-async function fetchJSON(url) {
-  const r = await fetch(url, { cache: "no-store" });
-  if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
-  return await r.json();
+function fmtThaiShortDate(d) {
+  // axis labels: dd/MM
+  const opt = { day:"2-digit", month:"2-digit", timeZone:"Asia/Bangkok" };
+  return new Intl.DateTimeFormat("th-TH", opt).format(d);
 }
 
-function normalizeSymbolForFile(sym) {
-  // XAUUSD -> xauusd
-  // PTT.BK -> ptt.bk  (ชื่อไฟล์จะมี dot ได้บน github pages)
-  // BTC-USD -> btc-usd
-  return sym.trim().toLowerCase();
-}
+function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
 
-function calcMA3(arr) {
-  const out = [];
-  for (let i = 0; i < arr.length; i++) {
-    const a = arr[i-2], b = arr[i-1], c = arr[i];
-    if (i < 2) out.push(null);
-    else out.push((a + b + c) / 3);
+function ma(arr, n){
+  const out = new Array(arr.length).fill(null);
+  for(let i=0;i<arr.length;i++){
+    if(i < n-1) continue;
+    let s=0;
+    for(let k=i-n+1;k<=i;k++) s += arr[k];
+    out[i]= s/n;
   }
   return out;
 }
 
-function calcBands(arr, ma, k=2) {
-  // rolling std 10
-  const win = 10;
-  const upper = [];
-  const lower = [];
-  for (let i = 0; i < arr.length; i++) {
-    if (i < win) { upper.push(null); lower.push(null); continue; }
-    const slice = arr.slice(i-win+1, i+1);
-    const m = ma[i] ?? slice.reduce((s,x)=>s+x,0)/slice.length;
-    const v = slice.reduce((s,x)=>s+(x-m)*(x-m),0)/slice.length;
-    const sd = Math.sqrt(v);
-    upper.push(m + k*sd);
-    lower.push(m - k*sd);
-  }
-  return { upper, lower };
+function std(arr){
+  const xs = arr.filter(v => Number.isFinite(v));
+  if(xs.length < 2) return 0;
+  const m = xs.reduce((a,b)=>a+b,0)/xs.length;
+  const v = xs.reduce((a,b)=>a+(b-m)*(b-m),0)/(xs.length-1);
+  return Math.sqrt(v);
 }
 
-function calcSlopePctPerDay(close) {
-  // slope จาก last 10 จุด (daily) แบบ linear approx
-  const n = Math.min(10, close.length);
-  if (n < 3) return 0;
+function safeParseISO(s){
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+async function fetchJSON(path){
+  const r = await fetch(path, { cache: "no-store" });
+  if(!r.ok) throw new Error(`HTTP ${r.status} ${path}`);
+  return await r.json();
+}
+
+function computeBands(close){
+  const mid = ma(close, MA);
+  // residuals on points where mid exists
+  const resid = close.map((v,i)=> (mid[i]==null ? null : (v - mid[i])));
+  const sigma = std(resid.slice(-WINDOW_DAYS)); // keep it local
+  const upper = mid.map(v => v==null ? null : v + 2*sigma);
+  const lower = mid.map(v => v==null ? null : v - 2*sigma);
+  return { mid, upper, lower, sigma };
+}
+
+function slopePctPerDay(close){
+  // linear-ish slope using last 6 valid daily closes
+  const n = Math.min(6, close.length);
+  if(n < 3) return 0;
   const y = close.slice(-n);
-  const x = [...Array(n)].map((_,i)=>i);
-
-  const xbar = x.reduce((s,v)=>s+v,0)/n;
-  const ybar = y.reduce((s,v)=>s+v,0)/n;
-
-  let num=0, den=0;
-  for (let i=0;i<n;i++){
-    num += (x[i]-xbar)*(y[i]-ybar);
-    den += (x[i]-xbar)*(x[i]-xbar);
-  }
-  const slope = den===0 ? 0 : num/den; // price units per day step
-  const last = close[close.length-1] || 1;
-  return (slope/last)*100; // %/day
+  const y0 = y[0];
+  const y1 = y[y.length-1];
+  const delta = y1 - y0;
+  const perDay = delta / (n-1);
+  const pct = (y1 !== 0) ? (perDay / y1) * 100 : 0;
+  return pct; // %/day
 }
 
-function calcZ(last, mid, upper, lower) {
-  // z ประมาณจาก mid และ band
-  if (!mid || !upper || !lower) return 0;
-  const sd = (upper - mid) / 2;
-  if (!sd || sd === 0) return 0;
-  return (last - mid) / sd;
-}
+function slopeRiskScore(absSlopePct){
+  // map to 0..5 (using your rule)
+  // <=5% => low
+  // 5..12 => watch
+  // >=12 => high
+  if(absSlopePct <= SLOPE_LOW) return 1.0;
+  if(absSlopePct >= 20) return 5.0;
 
-async function loadSymbol(sym) {
-  currentSymbol = sym.trim().toUpperCase();
-  if (!currentSymbol) return;
-
-  // UI titles
-  brandTitle.textContent = `LIMES MS — ${currentSymbol}`;
-  el("subTitle").textContent = "Daily Close | Forecast vs Actual (+1D)";
-
-  const fileKey = normalizeSymbolForFile(currentSymbol);
-  const dailyUrl = `data/${fileKey}_daily.json`;
-  const m15Url = `data/${fileKey}_15m.json`;
-
-  // Stamp
-  stamp.textContent = fmtThaiNow();
-
-  let daily, m15;
-  try {
-    daily = await fetchJSON(dailyUrl);
-  } catch (e) {
-    // ถ้าไม่มีไฟล์ daily ให้ขึ้นข้อความใน toast
-    statusToast.style.display = "flex";
-    toastPill.textContent = "WAITING";
-    toastTitle.textContent = `${currentSymbol} — ไม่มีไฟล์ข้อมูล`;
-    toastSub.textContent = `รอให้ GitHub Actions สร้างไฟล์: ${dailyUrl}`;
-    return;
-  }
-
-  try {
-    m15 = await fetchJSON(m15Url);
-  } catch {
-    m15 = { timestamps: [], close: [] };
-  }
-
-  const ts = daily.timestamps || [];
-  const close = (daily.close || []).map(Number).filter((x)=>Number.isFinite(x));
-
-  if (ts.length === 0 || close.length === 0) {
-    statusToast.style.display = "flex";
-    toastPill.textContent = "WAITING";
-    toastTitle.textContent = `${currentSymbol} — JSON ว่าง/ไม่พอ`;
-    toastSub.textContent = "Waiting for data…";
-    return;
-  }
-
-  // X labels as short Thai dates
-  const labels = ts.map((t)=>fmtShortX(t));
-
-  const ma3 = calcMA3(close);
-  const bands = calcBands(close, ma3, 2);
-
-  // Forecast +1D (เส้นประจุดเดียวต่อท้าย)
-  const last = close[close.length-1];
-  const slopePct = calcSlopePctPerDay(close);
-  const pred = last * (1 + slopePct/100);
-
-  const forecast = new Array(close.length).fill(null);
-  forecast.push(pred);
-
-  // Update chart
-  const c = ensureChart();
-  c.data.labels = labels;
-
-  // Price
-  c.data.datasets[0].data = close;
-
-  // MA3
-  c.data.datasets[1].data = ma3;
-
-  // Bands
-  c.data.datasets[2].data = bands.upper;
-  c.data.datasets[3].data = bands.lower;
-
-  // Forecast: ทำให้ปลายกราฟต่ออีก 1 จุด (label ปลายเป็น "+1")
-  c.data.labels = [...labels, "+1"];
-  c.data.datasets[0].data = [...close, null];
-  c.data.datasets[1].data = [...ma3, null];
-  c.data.datasets[2].data = [...bands.upper, null];
-  c.data.datasets[3].data = [...bands.lower, null];
-  c.data.datasets[4].data = forecast;
-
-  c.update();
-
-  // Side panel values
-  const latest15 = (m15.close && m15.close.length) ? Number(m15.close[m15.close.length-1]) : null;
-
-  day0El.textContent = fmtThaiDateFromISO(ts[0]);
-  latestEl.textContent = latest15 ? latest15.toFixed(2) : last.toFixed(2);
-  predEl.textContent = pred.toFixed(2);
-
-  slopeEl.textContent = `${slopePct >= 0 ? "+" : ""}${slopePct.toFixed(2)}%/day`;
-
-  // Human Risk default
-  const humanRisk = 2.29;
-  humanRiskEl.textContent = humanRisk.toFixed(2);
-  humanBar.querySelector(".fill").style.width = clamp(humanRisk/5*100,0,100).toFixed(0) + "%";
-
-  // Z score from last point (use latest band where exists)
-  let mid = ma3[ma3.length-1];
-  let up = bands.upper[bands.upper.length-1];
-  let lo = bands.lower[bands.lower.length-1];
-
-  // ถ้าปลายยัง null (เพราะ window) ให้ไล่ย้อนหาค่าที่มี
-  for (let i = ma3.length-1; i>=0; i--){
-    if (mid == null && ma3[i]!=null) mid = ma3[i];
-    if (up == null && bands.upper[i]!=null) up = bands.upper[i];
-    if (lo == null && bands.lower[i]!=null) lo = bands.lower[i];
-    if (mid!=null && up!=null && lo!=null) break;
-  }
-
-  const z = calcZ(last, mid, up, lo);
-  const absSlope = Math.abs(slopePct);
-  const absZ = Math.abs(z);
-
-  // Risk score (0..5)
-  const r = riskFromSlopeAndZ(absSlope, absZ);
-  paintState(r.state, r.score);
-
-  // Bars and arrows
-  setBar(dFill, r.score);
-  setBar(h2Fill, clamp(r.score * 0.44, 0, 5));
-  setBar(h1Fill, clamp(r.score * 0.24, 0, 5));
-
-  dScore.textContent = `${r.score.toFixed(2)}/5`;
-  h2Score.textContent = `${clamp(r.score * 0.44, 0, 5).toFixed(2)}/5`;
-  h1Score.textContent = `${clamp(r.score * 0.24, 0, 5).toFixed(2)}/5`;
-
-  dArrow.textContent = arrowFromSlope(slopePct);
-  h2Arrow.textContent = arrowFromSlope(slopePct);
-  h1Arrow.textContent = arrowFromSlope(slopePct);
-
-  // อัปเดต stamp ให้มีเวลาล่าสุดของ 15m ถ้ามี
-  if (m15.timestamps && m15.timestamps.length) {
-    const t15 = m15.timestamps[m15.timestamps.length-1];
-    const dt15 = new Date(t15);
-    const fmt = new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
-    stamp.textContent = `${fmtThaiNow()} • latest15=${fmt.format(dt15)}`;
+  if(absSlopePct <= SLOPE_HIGH){
+    // 5..12 => 1.0..3.5
+    const t = (absSlopePct - SLOPE_LOW) / (SLOPE_HIGH - SLOPE_LOW);
+    return 1.0 + t*(3.5-1.0);
+  }else{
+    // 12..20 => 3.5..5.0
+    const t = (absSlopePct - SLOPE_HIGH) / (20 - SLOPE_HIGH);
+    return 3.5 + t*(5.0-3.5);
   }
 }
 
-// ------- Events -------
-btnLoad?.addEventListener("click", () => loadSymbol(symbolInput.value || currentSymbol));
-symbolInput?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") loadSymbol(symbolInput.value || currentSymbol);
-});
+function classify(score){
+  if(score >= 3.8) return { label:"HIGH RISK", cls:"bad", flash:true };
+  if(score >= 2.2) return { label:"WATCH", cls:"warn", flash:false };
+  return { label:"BUY", cls:"good", flash:false };
+}
 
-// Initial
-(function init(){
-  stamp.textContent = fmtThaiNow();
-  symbolInput.value = currentSymbol;
-  ensureChart();
-  loadSymbol(currentSymbol);
-})();
+function updateThaiClock(){
+  const now = new Date();
+  document.getElementById("stamp").textContent = fmtThaiNow(now);
+  document.getElementById("pillTime").textContent = new Intl.DateTimeFormat("th-TH", { hour:"2-digit", minute:"2-digit", timeZone:"Asia/Bangkok" }).format(now);
+}
+setInterval(updateThaiClock, 1000);
+
+function setLoadedMeta(ticker, slope, z){
+  const el = document.getElementById("loadedMeta");
+  const s = (slope>=0?"+":"") + slope.toFixed(2) + "%/day";
+  el.textContent = `Loaded: ${ticker} • slope=${s} • z=${z.toFixed(2)}`;
+}
+
+function renderState(ticker, latest15, fc1d, slopePct, score, day0refStr){
+  const cls = classify(score);
+
+  // right panel badge
+  const badge = document.getElementById("stateBadge");
+  badge.className = `badge ${cls.cls}` + (cls.flash ? " flash" : "");
+  badge.textContent = cls.label;
+
+  document.getElementById("titleTicker").textContent = ticker;
+  document.getElementById("day0ref").textContent = day0refStr || "--";
+  document.getElementById("latest15").textContent = latest15 != null ? latest15.toFixed(2) : "--";
+  document.getElementById("fc1d").textContent = fc1d != null ? fc1d.toFixed(2) : "--";
+  document.getElementById("slope").textContent = (slopePct>=0?"+":"") + slopePct.toFixed(2) + "%/day";
+
+  document.getElementById("riskScore").textContent = score.toFixed(2);
+  document.getElementById("riskNeedle").style.left = `${clamp((score/5)*100,0,100)}%`;
+
+  // floating single status bottom-right
+  document.getElementById("pillTicker").textContent = ticker;
+  const pill = document.getElementById("pill");
+  pill.className = `pill ${cls.cls}` + (cls.flash ? " flash" : "");
+  pill.textContent = cls.label;
+
+  document.getElementById("pillScore").textContent = score.toFixed(2);
+}
+
+function buildChart(labels, price, mid, upper, lower){
+  const ctx = document.getElementById("chart").getContext("2d");
+  if(chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Upper",
+          data: upper,
+          borderColor: "rgba(110,143,179,0.75)",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.25
+        },
+        {
+          label: "Lower",
+          data: lower,
+          borderColor: "rgba(110,143,179,0.75)",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.25
+        },
+        {
+          label: "Phase/Mid (MA3)",
+          data: mid,
+          borderColor: "rgba(77,182,255,0.95)",
+          borderWidth: 2,
+          pointRadius: 0,
+          borderDash: [4,4],
+          tension: 0.25
+        },
+        {
+          label: "Price",
+          data: price,
+          borderColor: "rgba(240,180,75,0.95)",
+          borderWidth: 3,
+          pointRadius: 2,
+          pointHoverRadius: 3,
+          tension: 0.25
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed?.(2) ?? ctx.parsed.y}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: "rgba(255,255,255,0.06)" },
+          ticks: {
+            color: "rgba(232,238,252,0.70)",
+            autoSkip: true,
+            maxTicksLimit: 10   // ✅ ทำให้แกนนอนไม่แน่น/ไม่ยาวจนล้น
+          }
+        },
+        y: {
+          grid: { color: "rgba(255,255,255,0.06)" },
+          ticks: { color: "rgba(232,238,252,0.70)" }
+        }
+      }
+    }
+  });
+}
+
+function computeForecast1D(lastClose, midLast, slopePct){
+  // simple: forecast = lastClose + (slopePct% of lastClose)
+  if(lastClose == null) return null;
+  return lastClose * (1 + (slopePct/100));
+}
+
+function computeDay0RefTH(dailyTimestamps){
+  // your rule: day0 ref at 04:00 TH
+  // show latest daily date at 04:00 TH (display only)
+  const last = dailyTimestamps.length ? safeParseISO(dailyTimestamps[dailyTimestamps.length-1]) : null;
+  if(!last) return "--";
+  // Force Asia/Bangkok display; show date + 04:00
+  const dateStr = new Intl.DateTimeFormat("th-TH", { day:"2-digit", month:"short", year:"numeric", timeZone:"Asia/Bangkok" }).format(last);
+  return `${dateStr} 04:00`;
+}
+
+async function loadTicker(tickerRaw){
+  const ticker = (tickerRaw || DEFAULT_TICKER).trim().toUpperCase();
+  const tLower = ticker.toLowerCase();
+
+  // show Thai time immediately
+  updateThaiClock();
+
+  const dailyPath = `data/${tLower}_daily.json`;
+  const m15Path   = `data/${tLower}_15m.json`;
+
+  // fetch both
+  const [daily, m15] = await Promise.all([fetchJSON(dailyPath), fetchJSON(m15Path)]);
+
+  if(!daily?.timestamps?.length || !daily?.close?.length){
+    throw new Error(`Daily JSON empty/invalid: ${dailyPath}`);
+  }
+
+  // take last WINDOW_DAYS points
+  const tsAll = daily.timestamps;
+  const closeAll = daily.close.map(Number);
+
+  const start = Math.max(0, closeAll.length - WINDOW_DAYS);
+  const ts = tsAll.slice(start);
+  const close = closeAll.slice(start);
+
+  const labels = ts.map(s => {
+    const d = safeParseISO(s);
+    return d ? fmtThaiShortDate(d) : String(s);
+  });
+
+  const { mid, upper, lower, sigma } = computeBands(close);
+  buildChart(labels, close, mid, upper, lower);
+
+  // latest 15m
+  let latest15 = null;
+  if(m15?.close?.length) latest15 = Number(m15.close[m15.close.length-1]);
+
+  // risk components (slope-driven)
+  const slope = slopePctPerDay(close);
+  const absSlope = Math.abs(slope);
+  const slopeScore = slopeRiskScore(absSlope);
+
+  // z-score vs mid & sigma (secondary)
+  const lastClose = close[close.length-1];
+  const midLast = mid[mid.length-1] ?? lastClose;
+  const z = (sigma > 0) ? ((lastClose - midLast) / sigma) : 0;
+  const zScore = clamp(Math.abs(z) * 1.2, 0, 5); // mild
+
+  const score = Math.max(slopeScore, zScore); // ✅ ใช้ทั้ง slope + price-position แต่ slope เป็นตัวหลัก
+
+  const fc1d = computeForecast1D(lastClose, midLast, slope);
+  const day0refStr = computeDay0RefTH(tsAll);
+
+  setLoadedMeta(ticker, slope, z);
+  renderState(ticker, latest15, fc1d, slope, score, day0refStr);
+
+  // update title ticker
+  document.getElementById("titleTicker").textContent = ticker;
+}
+
+function wireUI(){
+  const input = document.getElementById("tickerInput");
+  const btn = document.getElementById("loadBtn");
+
+  btn.addEventListener("click", () => loadTicker(input.value).catch(err => alert(err.message)));
+  input.addEventListener("keydown", (e) => {
+    if(e.key === "Enter") loadTicker(input.value).catch(err => alert(err.message));
+  });
+
+  // initial load
+  loadTicker(DEFAULT_TICKER).catch(err => alert(err.message));
+}
+
+wireUI();
