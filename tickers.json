@@ -1,25 +1,16 @@
 {
-  "tickers": [
-    "JEPQ",
-    "AGNC",
-    "NVDA",
-    "SCHD",
-    "TSLA",
-    "GOOGL",
-    "AMD",
-    "JNJ",
-    "VOO",
-    "QQQ",
-    "BTC-USD",
-    "ETH-USD",
-    "XAUUSD"
-  ],
   "aliases": {
     "XAUUSD": "GC=F",
     "GOLD": "GC=F",
-    "BTC": "BTC-USD",
-    "ETH": "ETH-USD",
-    "MAG7": "MAGS",
-    "MAGY": "MAGS"
-  }
+    "XAUUSD=X": "GC=F"
+  },
+  "tickers": [
+    {"symbol": "XAUUSD", "name": "Gold (display) → Yahoo: GC=F"},
+    {"symbol": "JEPQ", "name": "JPMorgan Nasdaq Equity Premium Income ETF"},
+    {"symbol": "LMT", "name": "Lockheed Martin"},
+    {"symbol": "NVDA", "name": "NVIDIA"},
+    {"symbol": "TSLA", "name": "Tesla"},
+    {"symbol": "BTC-USD", "name": "Bitcoin / USD"},
+    {"symbol": "ETH-USD", "name": "Ethereum / USD"}
+  ]
 }
