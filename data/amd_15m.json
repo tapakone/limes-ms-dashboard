@@ -1,1 +1,1 @@
-{"symbol": "AMD", "interval": "15m", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:22:59.540315+00:00"}}
+{"symbol": "AMD", "interval": "15m", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:24:51.587723+00:00"}}

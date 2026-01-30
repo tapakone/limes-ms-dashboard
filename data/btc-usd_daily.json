@@ -1,1 +1,1 @@
-{"symbol": "BTC-USD", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:23:00.304170+00:00"}}
+{"symbol": "BTC-USD", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:24:52.481519+00:00"}}

@@ -1,1 +1,1 @@
-{"symbol": "QQQ", "interval": "15m", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:23:00.223916+00:00"}}
+{"symbol": "QQQ", "interval": "15m", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:24:52.387523+00:00"}}

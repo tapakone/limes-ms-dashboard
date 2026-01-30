@@ -1,1 +1,1 @@
-{"symbol": "VOO", "interval": "15m", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:23:00.025558+00:00"}}
+{"symbol": "VOO", "interval": "15m", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:24:52.148057+00:00"}}

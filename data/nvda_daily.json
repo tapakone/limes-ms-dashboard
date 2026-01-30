@@ -1,1 +1,1 @@
-{"symbol": "NVDA", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:22:58.843699+00:00"}}
+{"symbol": "NVDA", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:24:50.757770+00:00"}}
