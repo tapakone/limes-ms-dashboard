@@ -1,167 +1,23 @@
 [
-  {
-    "symbol": "ADVANC.BK",
-    "slug": "advanc_bk",
-    "yf": "ADVANC.BK",
-    "aliases": [],
-    "name": "Advanced Info Service",
-    "type": "equity",
-    "market": "TH"
-  },
-  {
-    "symbol": "AGNC",
-    "slug": "agnc",
-    "yf": "AGNC",
-    "aliases": [],
-    "name": "AGNC Investment Corp",
-    "type": "equity",
-    "market": "US"
-  },
-  {
-    "symbol": "AMD",
-    "slug": "amd",
-    "yf": "AMD",
-    "aliases": [],
-    "name": "AMD",
-    "type": "equity",
-    "market": "US"
-  },
-  {
-    "symbol": "AOT.BK",
-    "slug": "aot_bk",
-    "yf": "AOT.BK",
-    "aliases": [],
-    "name": "Airports of Thailand",
-    "type": "equity",
-    "market": "TH"
-  },
-  {
-    "symbol": "BTC-USD",
-    "slug": "btc-usd",
-    "yf": "BTC-USD",
-    "aliases": [],
-    "name": "Bitcoin",
-    "type": "crypto",
-    "market": "CRYPTO"
-  },
-  {
-    "symbol": "CPALL.BK",
-    "slug": "cpall_bk",
-    "yf": "CPALL.BK",
-    "aliases": [],
-    "name": "CP ALL PCL",
-    "type": "equity",
-    "market": "TH"
-  },
-  {
-    "symbol": "ETH-USD",
-    "slug": "eth-usd",
-    "yf": "ETH-USD",
-    "aliases": [],
-    "name": "Ethereum",
-    "type": "crypto",
-    "market": "CRYPTO"
-  },
-  {
-    "symbol": "GOOGL",
-    "slug": "googl",
-    "yf": "GOOGL",
-    "aliases": [],
-    "name": "Alphabet Class A",
-    "type": "equity",
-    "market": "US"
-  },
-  {
-    "symbol": "JEPQ",
-    "slug": "jepq",
-    "yf": "JEPQ",
-    "aliases": [],
-    "name": "JPMorgan Nasdaq Equity Premium Income ETF",
-    "type": "etf",
-    "market": "US"
-  },
-  {
-    "symbol": "JNJ",
-    "slug": "jnj",
-    "yf": "JNJ",
-    "aliases": [],
-    "name": "Johnson & Johnson",
-    "type": "equity",
-    "market": "US"
-  },
-  {
-    "symbol": "KBANK.BK",
-    "slug": "kbank_bk",
-    "yf": "KBANK.BK",
-    "aliases": [],
-    "name": "Kasikornbank",
-    "type": "equity",
-    "market": "TH"
-  },
-  {
-    "symbol": "MAGS",
-    "slug": "mags",
-    "yf": "MAGS",
-    "aliases": [
-      "MAG7",
-      "MAGY"
-    ],
-    "name": "Roundhill Magnificent Seven ETF",
-    "type": "etf",
-    "market": "US"
-  },
-  {
-    "symbol": "NVDA",
-    "slug": "nvda",
-    "yf": "NVDA",
-    "aliases": [],
-    "name": "NVIDIA",
-    "type": "equity",
-    "market": "US"
-  },
-  {
-    "symbol": "PTT.BK",
-    "slug": "ptt_bk",
-    "yf": "PTT.BK",
-    "aliases": [],
-    "name": "PTT PCL",
-    "type": "equity",
-    "market": "TH"
-  },
-  {
-    "symbol": "QQQ",
-    "slug": "qqq",
-    "yf": "QQQ",
-    "aliases": [],
-    "name": "Invesco QQQ ETF",
-    "type": "etf",
-    "market": "US"
-  },
-  {
-    "symbol": "SCHD",
-    "slug": "schd",
-    "yf": "SCHD",
-    "aliases": [],
-    "name": "Schwab U.S. Dividend Equity ETF",
-    "type": "etf",
-    "market": "US"
-  },
-  {
-    "symbol": "TSLA",
-    "slug": "tsla",
-    "yf": "TSLA",
-    "aliases": [],
-    "name": "Tesla",
-    "type": "equity",
-    "market": "US"
-  },
-  {
-    "symbol": "VOO",
-    "slug": "voo",
-    "yf": "VOO",
-    "aliases": [],
-    "name": "Vanguard S&P 500 ETF",
-    "type": "etf",
-    "market": "US"
-  }
+  { "id": "xauusd", "label": "Gold (Spot/Future)", "tickers": ["XAUUSD=X", "GC=F"] },
+
+  { "id": "agnc", "label": "AGNC", "tickers": ["AGNC"] },
+  { "id": "jepq", "label": "JEPQ", "tickers": ["JEPQ"] },
+  { "id": "nvda", "label": "NVDA", "tickers": ["NVDA"] },
+  { "id": "schd", "label": "SCHD", "tickers": ["SCHD"] },
+  { "id": "tsla", "label": "TSLA", "tickers": ["TSLA"] },
+  { "id": "googl", "label": "GOOGL", "tickers": ["GOOGL"] },
+  { "id": "amd", "label": "AMD", "tickers": ["AMD"] },
+  { "id": "jnj", "label": "JNJ", "tickers": ["JNJ"] },
+  { "id": "voo", "label": "VOO", "tickers": ["VOO"] },
+  { "id": "qqq", "label": "QQQ", "tickers": ["QQQ"] },
+
+  { "id": "mags", "label": "MAG7 ETF (MAGS)", "tickers": ["MAGS"] },
+
+  { "id": "btc", "label": "BTC-USD", "tickers": ["BTC-USD"] },
+  { "id": "eth", "label": "ETH-USD", "tickers": ["ETH-USD"] },
+
+  { "id": "cpall", "label": "CPALL.BK", "tickers": ["CPALL.BK"] },
+  { "id": "ptt", "label": "PTT.BK", "tickers": ["PTT.BK"] },
+  { "id": "aot", "label": "AOT.BK", "tickers": ["AOT.BK"] }
 ]

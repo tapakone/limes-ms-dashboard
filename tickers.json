@@ -1,31 +1,23 @@
 {
-  "symbols": [
-    "ADVANC.BK",
+  "tickers": [
+    "XAUUSD",
     "AGNC",
-    "AMD",
-    "AOT.BK",
-    "BTC-USD",
-    "CPALL.BK",
-    "ETH-USD",
-    "GOOGL",
     "JEPQ",
-    "JNJ",
-    "KBANK.BK",
-    "MAGS",
     "NVDA",
-    "PTT.BK",
-    "QQQ",
     "SCHD",
     "TSLA",
+    "GOOGL",
+    "AMD",
+    "JNJ",
     "VOO",
-    "XAUUSD"
-  ],
-  "aliases": {
-    "MAG7": "MAGS",
-    "MAGY": "MAGS"
-  },
-  "yf": {
-    "XAUUSD": "XAUUSD=X"
-  },
-  "updated_utc": "2026-01-30T12:02:18.964858Z"
+    "QQQ",
+    "BTC-USD",
+    "ETH-USD",
+
+    "PTT.BK",
+    "CPALL.BK",
+    "AOT.BK",
+    "ADVANC.BK",
+    "KBANK.BK"
+  ]
 }

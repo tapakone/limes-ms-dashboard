@@ -1,75 +1,94 @@
-#!/usr/bin/env python3
-"""
-Legacy single-asset fetch for XAUUSD.
-Kept for safety, but the main workflow is fetch_assets.yml.
-
-Outputs:
-  data/xauusd_daily.json
-  data/xauusd_15m.json
-"""
-
-import json
-import sys
-from datetime import timezone
-from pathlib import Path
-
+import os, json
+from datetime import datetime, timezone
 import pandas as pd
 import yfinance as yf
 
+DATA_DIR = os.environ.get("DATA_DIR", "data")
+os.makedirs(DATA_DIR, exist_ok=True)
 
-ROOT = Path(__file__).resolve().parent
-DATA_DIR = ROOT / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+def now_iso_utc():
+    return datetime.now(timezone.utc).isoformat()
 
-
-def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
-    if df is None or df.empty:
-        return pd.DataFrame()
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
-    if not isinstance(df.index, pd.DatetimeIndex):
-        df.index = pd.to_datetime(df.index, errors="coerce")
-    df = df[~df.index.isna()]
-    if df.index.tz is None:
-        df.index = df.index.tz_localize(timezone.utc)
+def to_iso_index(df: pd.DataFrame) -> pd.DataFrame:
+    # Ensure an ISO-8601 UTC string column "t" for the frontend
+    idx = df.index
+    if getattr(idx, "tz", None) is None:
+        idx = idx.tz_localize("UTC")
     else:
-        df.index = df.index.tz_convert(timezone.utc)
-    return df
-
-
-def _to_records(df: pd.DataFrame):
-    out = []
-    for ts, row in df.iterrows():
-        out.append({
-            "t": ts.isoformat().replace("+00:00", "Z"),
-            "o": float(row.get("Open", float("nan"))),
-            "h": float(row.get("High", float("nan"))),
-            "l": float(row.get("Low", float("nan"))),
-            "c": float(row.get("Close", float("nan"))),
-            "v": float(row.get("Volume", 0.0)) if pd.notna(row.get("Volume", 0.0)) else 0.0,
-        })
-    out = [r for r in out if r["c"] == r["c"]]
+        idx = idx.tz_convert("UTC")
+    out = df.copy()
+    out["t"] = idx.strftime("%Y-%m-%dT%H:%M:%SZ")
     return out
 
+def fetch_one(symbol: str, interval: str, period: str) -> pd.DataFrame:
+    df = yf.download(symbol, interval=interval, period=period, progress=False, auto_adjust=False, threads=False)
+    if df is None or df.empty:
+        return pd.DataFrame()
+    # yfinance can return multi-index cols; normalize
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [c[0] for c in df.columns]
+    if "Close" not in df.columns:
+        return pd.DataFrame()
+    df = df[["Close"]].dropna()
+    return df
 
-def main() -> int:
-    yf_sym = "XAUUSD=X"
+def write_json(path: str, rows: list, meta: dict):
+    payload = {"meta": meta, "rows": rows}
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp, path)
 
-    daily = yf.download(yf_sym, interval="1d", period="6mo", auto_adjust=False, progress=False, threads=False)
-    m15 = yf.download(yf_sym, interval="15m", period="7d", auto_adjust=False, progress=False, threads=False)
+def safe_update(symbol_alias: str, candidates: list[str]):
+    """Fetch daily+15m. If fails, keep existing files and exit OK."""
+    meta_base = {
+        "symbol": symbol_alias,
+        "updated_utc": now_iso_utc(),
+        "source": "Yahoo Finance via yfinance",
+        "candidates": candidates,
+    }
 
-    daily = _normalize_df(daily)
-    m15 = _normalize_df(m15)
+    def try_fetch(interval, period):
+        for sym in candidates:
+            try:
+                df = fetch_one(sym, interval=interval, period=period)
+                if df is not None and not df.empty and len(df) >= 10:
+                    meta = dict(meta_base)
+                    meta["symbol_used"] = sym
+                    meta["interval"] = interval
+                    meta["period"] = period
+                    df = to_iso_index(df)
+                    rows = [{"t": r.t, "c": float(r.Close)} for r in df.itertuples()]
+                    return sym, rows, meta
+            except Exception as e:
+                print(f"WARN: {sym} {interval} {period} failed: {e}")
+        return None, [], None
 
-    rec_d = _to_records(daily)
-    rec_15 = _to_records(m15)
+    # Daily
+    used_d, rows_d, meta_d = try_fetch("1d", "6mo")
+    # 15m
+    used_15, rows_15, meta_15 = try_fetch("15m", "7d")
 
-    (DATA_DIR / "xauusd_daily.json").write_text(json.dumps(rec_d, ensure_ascii=False), encoding="utf-8")
-    (DATA_DIR / "xauusd_15m.json").write_text(json.dumps(rec_15, ensure_ascii=False), encoding="utf-8")
+    base = symbol_alias.lower().replace("=", "").replace("^", "").replace("-", "_")
+    out_daily = os.path.join(DATA_DIR, f"{base}_daily.json")
+    out_15m = os.path.join(DATA_DIR, f"{base}_15m.json")
 
-    print(f"OK daily rows={len(rec_d)} 15m rows={len(rec_15)}")
-    return 0 if len(rec_d) >= 20 and len(rec_15) >= 40 else 1
+    if rows_d and meta_d:
+        write_json(out_daily, rows_d, meta_d)
+        print(f"OK daily -> {out_daily} (rows={len(rows_d)}) used={used_d}")
+    else:
+        print(f"WARN daily: no data for {symbol_alias}. Keeping existing file if present.")
 
+    if rows_15 and meta_15:
+        write_json(out_15m, rows_15, meta_15)
+        print(f"OK 15m -> {out_15m} (rows={len(rows_15)}) used={used_15}")
+    else:
+        print(f"WARN 15m: no data for {symbol_alias}. Keeping existing file if present.")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Primary gold spot pair often used on Yahoo; if blocked, fall back to GC=F.
+    symbol_alias = os.environ.get("SYMBOL", "XAUUSD")
+    candidates = os.environ.get("CANDIDATES", "XAUUSD=X,GC=F").split(",")
+    candidates = [c.strip() for c in candidates if c.strip()]
+    safe_update(symbol_alias, candidates)
+    # Always exit 0 so Pages keeps serving last good data.

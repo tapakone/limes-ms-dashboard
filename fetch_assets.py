@@ -1,249 +1,235 @@
-#!/usr/bin/env python3
-"""
-Fetch multiple assets from Yahoo Finance via yfinance and write JSON files for the dashboard.
-
-Outputs:
-  data/<slug>_daily.json
-  data/<slug>_15m.json
-  assets.json   (metadata list)
-  tickers.json  (symbols list + aliases + yf map)
-
-This script is designed to be robust:
-- It continues even if some tickers fail.
-- It exits 0 unless *all* tickers fail.
-"""
-
-import json
 import os
-import re
+import json
 import sys
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 import yfinance as yf
 
+DATA_DIR = "data"
+TICKERS_FILE = "tickers.json"
 
-ROOT = Path(__file__).resolve().parent
-DATA_DIR = ROOT / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-TICKERS_FILE = ROOT / "tickers.json"
-ASSETS_FILE = ROOT / "assets.json"
-
-DEFAULT_TICKERS = [
-    "XAUUSD",
-    "NVDA", "TSLA", "GOOGL", "AMD", "JNJ",
-    "VOO", "QQQ", "SCHD", "JEPQ", "AGNC",
-    "MAGS",
-    "PTT.BK", "CPALL.BK", "AOT.BK", "ADVANC.BK", "KBANK.BK",
-    "BTC-USD", "ETH-USD",
-]
-
-DEFAULT_YF_MAP = {
-    # Display -> Yahoo/yfinance symbol
-    "XAUUSD": "XAUUSD=X",
-    # You can add more FX pairs here later.
-}
-
-DEFAULT_ALIASES = {
-    "MAG7": "MAGS",
-    "MAGY": "MAGS",
-}
+# ตั้งค่านี้เป็น 1 ถ้าคุณ "อยากให้ fail เมื่อมีตัวไหนเสีย" (โหมดเข้ม)
+STRICT_FAIL = os.environ.get("STRICT_FAIL", "0") == "1"
 
 
-def safe_slug(symbol: str) -> str:
-    """Make safe filename slug compatible with the dashboard JS."""
-    return (
-        symbol.strip().lower()
-        .replace("^", "")
-        .replace("=", "")
-        .replace(".", "_")
-    )
+def safe_slug(sym: str) -> str:
+    return sym.strip().lower().replace("^", "").replace("=", "").replace(".", "_").replace("-", "-")
 
 
-def _read_tickers() -> Tuple[List[str], Dict[str, str], Dict[str, str]]:
+def ensure_data_dir():
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+
+def write_json(path: str, payload: dict):
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False)
+    os.replace(tmp, path)
+
+
+def empty_payload(symbol: str, interval: str, reason: str):
+    return {
+        "symbol": symbol,
+        "interval": interval,
+        "timestamps": [],
+        "close": [],
+        "meta": {
+            "ok": False,
+            "reason": reason,
+            "generated_utc": datetime.now(timezone.utc).isoformat(),
+        },
+    }
+
+
+def ok_payload(symbol: str, interval: str, ts, close):
+    return {
+        "symbol": symbol,
+        "interval": interval,
+        "timestamps": ts,
+        "close": close,
+        "meta": {
+            "ok": True,
+            "generated_utc": datetime.now(timezone.utc).isoformat(),
+        },
+    }
+
+
+def fetch_history(symbol: str, interval: str, period: str) -> pd.DataFrame:
     """
-    Returns: (symbols, aliases, yf_map)
-    Accepts older schema:
-      { "tickers": [...] }
-    And new schema:
-      { "symbols": [...], "aliases": {...}, "yf": {...} }
+    yfinance download:
+    - daily: interval="1d"
+    - 15m : interval="15m"
     """
-    if not TICKERS_FILE.exists():
-        return DEFAULT_TICKERS, DEFAULT_ALIASES, DEFAULT_YF_MAP
-
-    try:
-        obj = json.loads(TICKERS_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return DEFAULT_TICKERS, DEFAULT_ALIASES, DEFAULT_YF_MAP
-
-    symbols: List[str] = []
-    aliases: Dict[str, str] = {}
-    yf_map: Dict[str, str] = {}
-
-    if isinstance(obj, dict):
-        if isinstance(obj.get("symbols"), list):
-            symbols = [str(x).strip() for x in obj["symbols"] if str(x).strip()]
-        if isinstance(obj.get("tickers"), list) and not symbols:
-            symbols = [str(x).strip() for x in obj["tickers"] if str(x).strip()]
-        if isinstance(obj.get("aliases"), dict):
-            aliases = {str(k).strip().upper(): str(v).strip() for k, v in obj["aliases"].items() if str(k).strip() and str(v).strip()}
-        if isinstance(obj.get("yf"), dict):
-            yf_map = {str(k).strip().upper(): str(v).strip() for k, v in obj["yf"].items() if str(k).strip() and str(v).strip()}
-
-    if not symbols:
-        symbols = DEFAULT_TICKERS
-
-    # merge defaults (defaults win only if key missing)
-    merged_aliases = dict(DEFAULT_ALIASES)
-    merged_aliases.update(aliases)
-    merged_yf = dict(DEFAULT_YF_MAP)
-    merged_yf.update(yf_map)
-
-    # normalize symbols to upper (keep dots and dashes)
-    symbols = [s.upper() for s in symbols]
-
-    return symbols, merged_aliases, merged_yf
-
-
-def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
-    if df is None or df.empty:
-        return pd.DataFrame()
-    # yfinance may return multiindex columns even for single ticker sometimes
-    if isinstance(df.columns, pd.MultiIndex):
-        # prefer "Close" etc level
-        df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
-    df = df.copy()
-    # Ensure datetime index
-    if not isinstance(df.index, pd.DatetimeIndex):
-        df.index = pd.to_datetime(df.index, errors="coerce")
-    df = df[~df.index.isna()]
-    # Make tz-aware to UTC
-    if df.index.tz is None:
-        df.index = df.index.tz_localize(timezone.utc)
-    else:
-        df.index = df.index.tz_convert(timezone.utc)
-    return df
-
-
-def _to_records(df: pd.DataFrame) -> List[dict]:
-    """
-    Convert to compact records: [{t, o, h, l, c, v}]
-    t is ISO string (UTC).
-    """
-    out = []
-    if df.empty:
-        return out
-    for ts, row in df.iterrows():
-        out.append({
-            "t": ts.isoformat().replace("+00:00", "Z"),
-            "o": float(row.get("Open", float("nan"))),
-            "h": float(row.get("High", float("nan"))),
-            "l": float(row.get("Low", float("nan"))),
-            "c": float(row.get("Close", float("nan"))),
-            "v": float(row.get("Volume", 0.0)) if pd.notna(row.get("Volume", 0.0)) else 0.0,
-        })
-    # drop nan closes
-    out = [r for r in out if r["c"] == r["c"]]
-    return out
-
-
-def fetch_one(display_symbol: str, yf_symbol: str, interval: str, period: str) -> pd.DataFrame:
     df = yf.download(
-        yf_symbol,
+        tickers=symbol,
         interval=interval,
         period=period,
         auto_adjust=False,
         progress=False,
         threads=False,
     )
-    df = _normalize_df(df)
+    # yfinance อาจคืน empty df ถ้าหา symbol ไม่เจอ/โดนจำกัด
+    if df is None or df.empty:
+        return pd.DataFrame()
+    # บางครั้งคอลัมน์เป็น MultiIndex ถ้าส่งหลาย ticker (แต่เราส่งทีละตัว) เผื่อไว้
+    if isinstance(df.columns, pd.MultiIndex):
+        # เลือก level ที่ชื่อ "Close" ถ้ามี
+        if "Close" in df.columns.get_level_values(0):
+            df = df["Close"].to_frame("Close")
+        else:
+            # fallback: พยายามหา Close
+            close_col = [c for c in df.columns if "Close" in str(c)]
+            if close_col:
+                df = df[close_col[0]].to_frame("Close")
+
     return df
 
 
-def main() -> int:
-    symbols, aliases, yf_map = _read_tickers()
-
-    ok = 0
-    fail = 0
-    assets_meta: List[dict] = []
-
-    # Load existing metadata to preserve names/types across updates
-    existing_meta = {}
-    if ASSETS_FILE.exists():
-        try:
-            old = json.loads(ASSETS_FILE.read_text(encoding="utf-8"))
-            if isinstance(old, list):
-                for a in old:
-                    if isinstance(a, dict) and a.get("symbol"):
-                        existing_meta[str(a["symbol"]).upper()] = a
-        except Exception:
-            pass
+def to_series_close(df: pd.DataFrame) -> pd.Series:
+    # ให้แน่ใจว่าได้ Series
+    if df is None or df.empty:
+        return pd.Series(dtype="float64")
+    if "Close" in df.columns:
+        s = df["Close"]
+    elif "close" in df.columns:
+        s = df["close"]
+    else:
+        # ถ้า df เป็น Series อยู่แล้ว
+        if isinstance(df, pd.Series):
+            s = df
+        else:
+            return pd.Series(dtype="float64")
+    return pd.to_numeric(s, errors="coerce").dropna()
 
 
-    for disp in symbols:
-        # Apply alias for display symbol
-        disp_upper = disp.upper()
-        if disp_upper in aliases:
-            disp_upper = aliases[disp_upper].upper()
+def build_file(symbol: str, kind: str) -> str:
+    slug = safe_slug(symbol)
+    return os.path.join(DATA_DIR, f"{slug}_{kind}.json")
 
-        yf_sym = yf_map.get(disp_upper, disp_upper)  # map XAUUSD->XAUUSD=X etc
 
-        slug = safe_slug(disp_upper)
-        daily_path = DATA_DIR / f"{slug}_daily.json"
-        m15_path = DATA_DIR / f"{slug}_15m.json"
+def run_one(symbol: str):
+    """
+    สร้าง 2 ไฟล์ต่อ 1 symbol:
+      - *_daily.json (1d / 6mo)
+      - *_15m.json   (15m / 7d)
+    """
+    results = {}
 
-        try:
-            dfd = fetch_one(disp_upper, yf_sym, interval="1d", period="6mo")
-            df15 = fetch_one(disp_upper, yf_sym, interval="15m", period="7d")
+    # DAILY
+    daily_path = build_file(symbol, "daily")
+    try:
+        df_d = fetch_history(symbol, interval="1d", period="6mo")
+        s_d = to_series_close(df_d)
+        if s_d.empty:
+            payload = empty_payload(symbol, "1d", "no daily data")
+            write_json(daily_path, payload)
+            results["daily"] = (False, 0, "no daily data")
+        else:
+            ts = [t.isoformat() for t in s_d.index.to_pydatetime()]
+            close = [float(x) for x in s_d.values.tolist()]
+            payload = ok_payload(symbol, "1d", ts, close)
+            write_json(daily_path, payload)
+            results["daily"] = (True, len(close), "ok")
+    except Exception as e:
+        payload = empty_payload(symbol, "1d", f"exception: {e}")
+        write_json(daily_path, payload)
+        results["daily"] = (False, 0, f"exception: {e}")
 
-            rec_d = _to_records(dfd)
-            rec_15 = _to_records(df15)
+    # 15m
+    m15_path = build_file(symbol, "15m")
+    try:
+        df_15 = fetch_history(symbol, interval="15m", period="7d")
+        s_15 = to_series_close(df_15)
+        if s_15.empty:
+            payload = empty_payload(symbol, "15m", "no 15m data")
+            write_json(m15_path, payload)
+            results["15m"] = (False, 0, "no 15m data")
+        else:
+            ts = [t.isoformat() for t in s_15.index.to_pydatetime()]
+            close = [float(x) for x in s_15.values.tolist()]
+            payload = ok_payload(symbol, "15m", ts, close)
+            write_json(m15_path, payload)
+            results["15m"] = (True, len(close), "ok")
+    except Exception as e:
+        payload = empty_payload(symbol, "15m", f"exception: {e}")
+        write_json(m15_path, payload)
+        results["15m"] = (False, 0, f"exception: {e}")
 
-            if len(rec_d) < 20 or len(rec_15) < 40:
-                raise RuntimeError(f"insufficient rows (daily={len(rec_d)} 15m={len(rec_15)})")
+    return results
 
-            daily_path.write_text(json.dumps(rec_d, ensure_ascii=False), encoding="utf-8")
-            m15_path.write_text(json.dumps(rec_15, ensure_ascii=False), encoding="utf-8")
 
-            base = {"symbol": disp_upper, "slug": slug, "yf": yf_sym, "aliases": []}
-            if disp_upper in existing_meta:
-                keep = existing_meta[disp_upper]
-                # keep optional fields (name/type/market/aliases) if present
-                for k in ["name","type","market","aliases"]:
-                    if k in keep and keep[k]:
-                        base[k] = keep[k]
-            assets_meta.append(base)
+def load_tickers() -> list[str]:
+    if not os.path.exists(TICKERS_FILE):
+        return ["XAUUSD=X"]
+    with open(TICKERS_FILE, "r", encoding="utf-8") as f:
+        obj = json.load(f)
+    arr = obj.get("tickers", [])
+    # กันซ้ำ/กันค่าว่าง
+    out = []
+    seen = set()
+    for x in arr:
+        if not x or not str(x).strip():
+            continue
+        s = str(x).strip()
+        if s not in seen:
+            out.append(s)
+            seen.add(s)
+    return out
 
-            ok += 1
-            print(f"OK daily -> {daily_path.as_posix()} (rows={len(rec_d)})")
-            print(f"OK 15m  -> {m15_path.as_posix()} (rows={len(rec_15)})")
 
-        except Exception as e:
-            fail += 1
-            print(f"FAIL {disp_upper} ({yf_sym}): {e}")
-
-    # Write metadata files (always)
-    assets_meta = sorted({a["symbol"]: a for a in assets_meta}.values(), key=lambda x: x["symbol"])
-    ASSETS_FILE.write_text(json.dumps(assets_meta, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    # Write tickers.json in the NEW schema (keep your manual edits if you want)
-    tickers_out = {
-        "symbols": sorted(list(set(symbols))),
-        "aliases": {k: v for k, v in sorted(aliases.items())},
-        "yf": {k: v for k, v in sorted(yf_map.items())},
-        "updated_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+def write_manifest(tickers: list[str], summary: dict):
+    """
+    ทำไฟล์ manifest สำหรับ autocomplete / เช็คว่ามีตัวไหนพร้อมใช้งาน
+    """
+    payload = {
+        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "tickers": tickers,
+        "summary": summary,
     }
-    TICKERS_FILE.write_text(json.dumps(tickers_out, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_json(os.path.join(DATA_DIR, "manifest.json"), payload)
 
-    print(f"\nDone: ok={ok} fail={fail}")
 
-    # Exit policy: only fail the job if EVERYTHING failed
-    return 0 if ok > 0 else 1
+def main():
+    ensure_data_dir()
+    tickers = load_tickers()
+
+    any_fail = False
+    summary = {}
+
+    for sym in tickers:
+        res = run_one(sym)
+
+        d_ok, d_rows, d_msg = res["daily"]
+        m_ok, m_rows, m_msg = res["15m"]
+
+        if d_ok:
+            print(f"OK daily -> {build_file(sym, 'daily')} (rows={d_rows})")
+        else:
+            print(f"WARN daily -> {build_file(sym, 'daily')} ({d_msg})")
+            any_fail = True
+
+        if m_ok:
+            print(f"OK 15m   -> {build_file(sym, '15m')} (rows={m_rows})")
+        else:
+            print(f"WARN 15m   -> {build_file(sym, '15m')} ({m_msg})")
+            any_fail = True
+
+        summary[sym] = {
+            "daily": {"ok": d_ok, "rows": d_rows, "msg": d_msg},
+            "15m": {"ok": m_ok, "rows": m_rows, "msg": m_msg},
+        }
+
+    write_manifest(tickers, summary)
+
+    # ✅ จุดสำคัญ: ปกติให้ผ่าน (exit 0) เพื่อให้ commit/push ทำงานต่อ
+    # ถ้าคุณอยาก strict: ตั้ง env STRICT_FAIL=1 ใน workflow
+    if STRICT_FAIL and any_fail:
+        print("STRICT_FAIL=1 and some tickers failed -> exit(1)")
+        sys.exit(1)
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
