@@ -1,23 +1,30 @@
 {
-  "tickers": [
+  "symbols": [
     "XAUUSD",
-    "AGNC",
-    "JEPQ",
     "NVDA",
-    "SCHD",
     "TSLA",
     "GOOGL",
     "AMD",
     "JNJ",
     "VOO",
     "QQQ",
-    "BTC-USD",
-    "ETH-USD",
-
+    "SCHD",
+    "JEPQ",
+    "AGNC",
+    "MAGS",
     "PTT.BK",
     "CPALL.BK",
     "AOT.BK",
     "ADVANC.BK",
-    "KBANK.BK"
-  ]
+    "KBANK.BK",
+    "BTC-USD",
+    "ETH-USD"
+  ],
+  "aliases": {
+    "MAG7": "MAGS",
+    "MAGY": "MAGS"
+  },
+  "yf": {
+    "XAUUSD": "XAUUSD=X"
+  }
 }

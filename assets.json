@@ -1,23 +1,178 @@
 [
-  { "id": "xauusd", "label": "Gold (Spot/Future)", "tickers": ["XAUUSD=X", "GC=F"] },
-
-  { "id": "agnc", "label": "AGNC", "tickers": ["AGNC"] },
-  { "id": "jepq", "label": "JEPQ", "tickers": ["JEPQ"] },
-  { "id": "nvda", "label": "NVDA", "tickers": ["NVDA"] },
-  { "id": "schd", "label": "SCHD", "tickers": ["SCHD"] },
-  { "id": "tsla", "label": "TSLA", "tickers": ["TSLA"] },
-  { "id": "googl", "label": "GOOGL", "tickers": ["GOOGL"] },
-  { "id": "amd", "label": "AMD", "tickers": ["AMD"] },
-  { "id": "jnj", "label": "JNJ", "tickers": ["JNJ"] },
-  { "id": "voo", "label": "VOO", "tickers": ["VOO"] },
-  { "id": "qqq", "label": "QQQ", "tickers": ["QQQ"] },
-
-  { "id": "mags", "label": "MAG7 ETF (MAGS)", "tickers": ["MAGS"] },
-
-  { "id": "btc", "label": "BTC-USD", "tickers": ["BTC-USD"] },
-  { "id": "eth", "label": "ETH-USD", "tickers": ["ETH-USD"] },
-
-  { "id": "cpall", "label": "CPALL.BK", "tickers": ["CPALL.BK"] },
-  { "id": "ptt", "label": "PTT.BK", "tickers": ["PTT.BK"] },
-  { "id": "aot", "label": "AOT.BK", "tickers": ["AOT.BK"] }
+  {
+    "symbol": "XAUUSD",
+    "name": "Gold Spot (XAU/USD)",
+    "type": "fx/commodity",
+    "market": "FX",
+    "aliases": [
+      "XAUUSD=X"
+    ],
+    "slug": "xauusd",
+    "yf": "XAUUSD=X"
+  },
+  {
+    "symbol": "NVDA",
+    "name": "NVIDIA",
+    "type": "equity",
+    "market": "US",
+    "aliases": [],
+    "slug": "nvda",
+    "yf": "NVDA"
+  },
+  {
+    "symbol": "TSLA",
+    "name": "Tesla",
+    "type": "equity",
+    "market": "US",
+    "aliases": [],
+    "slug": "tsla",
+    "yf": "TSLA"
+  },
+  {
+    "symbol": "GOOGL",
+    "name": "Alphabet Class A",
+    "type": "equity",
+    "market": "US",
+    "aliases": [],
+    "slug": "googl",
+    "yf": "GOOGL"
+  },
+  {
+    "symbol": "AMD",
+    "name": "AMD",
+    "type": "equity",
+    "market": "US",
+    "aliases": [],
+    "slug": "amd",
+    "yf": "AMD"
+  },
+  {
+    "symbol": "JNJ",
+    "name": "Johnson & Johnson",
+    "type": "equity",
+    "market": "US",
+    "aliases": [],
+    "slug": "jnj",
+    "yf": "JNJ"
+  },
+  {
+    "symbol": "VOO",
+    "name": "Vanguard S&P 500 ETF",
+    "type": "etf",
+    "market": "US",
+    "aliases": [],
+    "slug": "voo",
+    "yf": "VOO"
+  },
+  {
+    "symbol": "QQQ",
+    "name": "Invesco QQQ ETF",
+    "type": "etf",
+    "market": "US",
+    "aliases": [],
+    "slug": "qqq",
+    "yf": "QQQ"
+  },
+  {
+    "symbol": "SCHD",
+    "name": "Schwab U.S. Dividend Equity ETF",
+    "type": "etf",
+    "market": "US",
+    "aliases": [],
+    "slug": "schd",
+    "yf": "SCHD"
+  },
+  {
+    "symbol": "JEPQ",
+    "name": "JPMorgan Nasdaq Equity Premium Income ETF",
+    "type": "etf",
+    "market": "US",
+    "aliases": [],
+    "slug": "jepq",
+    "yf": "JEPQ"
+  },
+  {
+    "symbol": "AGNC",
+    "name": "AGNC Investment Corp",
+    "type": "equity",
+    "market": "US",
+    "aliases": [],
+    "slug": "agnc",
+    "yf": "AGNC"
+  },
+  {
+    "symbol": "MAGS",
+    "name": "Roundhill Magnificent Seven ETF",
+    "type": "etf",
+    "market": "US",
+    "aliases": [
+      "MAG7",
+      "MAGY"
+    ],
+    "slug": "mags",
+    "yf": "MAGS"
+  },
+  {
+    "symbol": "PTT.BK",
+    "name": "PTT PCL",
+    "type": "equity",
+    "market": "TH",
+    "aliases": [],
+    "slug": "ptt_bk",
+    "yf": "PTT.BK"
+  },
+  {
+    "symbol": "CPALL.BK",
+    "name": "CP ALL PCL",
+    "type": "equity",
+    "market": "TH",
+    "aliases": [],
+    "slug": "cpall_bk",
+    "yf": "CPALL.BK"
+  },
+  {
+    "symbol": "AOT.BK",
+    "name": "Airports of Thailand",
+    "type": "equity",
+    "market": "TH",
+    "aliases": [],
+    "slug": "aot_bk",
+    "yf": "AOT.BK"
+  },
+  {
+    "symbol": "ADVANC.BK",
+    "name": "Advanced Info Service",
+    "type": "equity",
+    "market": "TH",
+    "aliases": [],
+    "slug": "advanc_bk",
+    "yf": "ADVANC.BK"
+  },
+  {
+    "symbol": "KBANK.BK",
+    "name": "Kasikornbank",
+    "type": "equity",
+    "market": "TH",
+    "aliases": [],
+    "slug": "kbank_bk",
+    "yf": "KBANK.BK"
+  },
+  {
+    "symbol": "BTC-USD",
+    "name": "Bitcoin",
+    "type": "crypto",
+    "market": "CRYPTO",
+    "aliases": [],
+    "slug": "btc-usd",
+    "yf": "BTC-USD"
+  },
+  {
+    "symbol": "ETH-USD",
+    "name": "Ethereum",
+    "type": "crypto",
+    "market": "CRYPTO",
+    "aliases": [],
+    "slug": "eth-usd",
+    "yf": "ETH-USD"
+  }
 ]

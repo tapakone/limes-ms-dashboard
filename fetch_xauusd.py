@@ -1,159 +1,75 @@
+#!/usr/bin/env python3
+"""
+Legacy single-asset fetch for XAUUSD.
+Kept for safety, but the main workflow is fetch_assets.yml.
+
+Outputs:
+  data/xauusd_daily.json
+  data/xauusd_15m.json
+"""
+
 import json
-import re
-from datetime import datetime
-import yfinance as yf
+import sys
+from datetime import timezone
+from pathlib import Path
+
 import pandas as pd
-
-# ====== CONFIG: เพิ่ม/ลดสินทรัพย์ตรงนี้ ======
-# key = "ชื่อที่จะแสดง/พิมพ์ในเว็บ"
-# value = list ของ Yahoo symbols (ตัวแรกคือหลัก, ถ้า fail จะลองตัวถัดไป)
-ASSETS = {
-    # Gold (ลอง spot ก่อน ถ้าไม่ได้จะ fallback futures)
-    "XAUUSD": ["XAUUSD=X", "GC=F"],
-
-    # US Stocks / ETFs
-    "AGNC": ["AGNC"],
-    "JEPQ": ["JEPQ"],
-    "NVDA": ["NVDA"],
-    "SCHD": ["SCHD"],
-    "TSLA": ["TSLA"],
-    "GOOGL": ["GOOGL"],
-    "AMD": ["AMD"],
-    "JNJ": ["JNJ"],
-    "VOO": ["VOO"],
-    "QQQ": ["QQQ"],
-
-    # Mag7 / Mag7 ETF (แนะนำใช้ ETF ที่มีจริง)
-    "MAG7": ["MAGS"],  # Roundhill Magnificent Seven ETF
-
-    # Crypto
-    "BTC": ["BTC-USD"],
-    "ETH": ["ETH-USD"],
-
-    # Thai stocks (เติม .BK)
-    # ตัวอย่าง:
-    # "CPALL": ["CPALL.BK"],
-    # "AOT": ["AOT.BK"],
-}
-
-INTERVALS = {
-    "15m": {"period": "7d"},
-    "1d": {"period": "180d"},
-}
-
-DATA_DIR = "data"
+import yfinance as yf
 
 
-def slugify(name: str) -> str:
-    s = name.strip().upper()
-    s = re.sub(r"[^A-Z0-9]+", "_", s)
-    return s.lower().strip("_")
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
-
-    # yfinance บางทีได้ MultiIndex columns
     if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [c[0] for c in df.columns]
+        df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index, errors="coerce")
+    df = df[~df.index.isna()]
+    if df.index.tz is None:
+        df.index = df.index.tz_localize(timezone.utc)
+    else:
+        df.index = df.index.tz_convert(timezone.utc)
+    return df
 
-    # บางครั้งได้ "Adj Close" อย่างเดียว
-    close_col = None
-    for c in ["Close", "Adj Close"]:
-        if c in df.columns:
-            close_col = c
-            break
-    if close_col is None:
-        return pd.DataFrame()
 
-    out = df[[close_col]].copy()
-    out.rename(columns={close_col: "Close"}, inplace=True)
-
-    # index เป็น datetime
-    if not isinstance(out.index, pd.DatetimeIndex):
-        out.index = pd.to_datetime(out.index, errors="coerce")
-    out = out.dropna()
-
+def _to_records(df: pd.DataFrame):
+    out = []
+    for ts, row in df.iterrows():
+        out.append({
+            "t": ts.isoformat().replace("+00:00", "Z"),
+            "o": float(row.get("Open", float("nan"))),
+            "h": float(row.get("High", float("nan"))),
+            "l": float(row.get("Low", float("nan"))),
+            "c": float(row.get("Close", float("nan"))),
+            "v": float(row.get("Volume", 0.0)) if pd.notna(row.get("Volume", 0.0)) else 0.0,
+        })
+    out = [r for r in out if r["c"] == r["c"]]
     return out
 
 
-def _to_iso_list(ts_index: pd.DatetimeIndex) -> list:
-    # ถ้า tz-aware ใช้ tz_convert, ถ้า tz-naive ใช้ tz_localize
-    if ts_index.tz is None:
-        ts = ts_index.tz_localize("UTC")
-    else:
-        ts = ts_index.tz_convert("UTC")
-    return [t.isoformat() for t in ts.to_pydatetime()]
+def main() -> int:
+    yf_sym = "XAUUSD=X"
 
+    daily = yf.download(yf_sym, interval="1d", period="6mo", auto_adjust=False, progress=False, threads=False)
+    m15 = yf.download(yf_sym, interval="15m", period="7d", auto_adjust=False, progress=False, threads=False)
 
-def fetch_one(symbols: list[str], interval: str, period: str):
-    last_err = None
-    for sym in symbols:
-        try:
-            df = yf.download(
-                sym,
-                interval=interval,
-                period=period,
-                progress=False,
-                auto_adjust=False,
-                threads=False,
-            )
-            df = _normalize_df(df)
-            if df.empty:
-                raise ValueError("Empty dataframe")
-            ts = _to_iso_list(df.index)
-            close = df["Close"].astype(float).tolist()
-            return sym, ts, close
-        except Exception as e:
-            last_err = f"{sym}: {repr(e)}"
-            continue
-    raise RuntimeError(last_err or "No symbols worked")
+    daily = _normalize_df(daily)
+    m15 = _normalize_df(m15)
 
+    rec_d = _to_records(daily)
+    rec_15 = _to_records(m15)
 
-def write_json(path: str, payload: dict):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False)
+    (DATA_DIR / "xauusd_daily.json").write_text(json.dumps(rec_d, ensure_ascii=False), encoding="utf-8")
+    (DATA_DIR / "xauusd_15m.json").write_text(json.dumps(rec_15, ensure_ascii=False), encoding="utf-8")
 
-
-def main():
-    meta_list = []
-
-    for asset_key, yahoo_symbols in ASSETS.items():
-        asset_id = slugify(asset_key)
-
-        for interval, cfg in INTERVALS.items():
-            yahoo_used, ts, close = fetch_one(
-                yahoo_symbols, interval=interval, period=cfg["period"]
-            )
-
-            if interval == "1d":
-                out_path = f"{DATA_DIR}/{asset_id}_daily.json"
-            else:
-                out_path = f"{DATA_DIR}/{asset_id}_{interval}.json"
-
-            write_json(out_path, {"timestamps": ts, "close": close})
-
-            # เก็บ meta สำหรับ assets.json
-            if interval == "1d":
-                daily_used = yahoo_used
-            else:
-                intraday_used = yahoo_used
-
-        meta_list.append(
-            {
-                "id": asset_id,
-                "label": asset_key.upper(),
-                "yahoo": yahoo_symbols,
-                "used_daily": daily_used,
-                "used_15m": intraday_used,
-                "updated_utc": datetime.utcnow().isoformat() + "Z",
-            }
-        )
-
-    # สร้างไฟล์สำหรับ autocomplete
-    write_json(f"{DATA_DIR}/assets.json", {"assets": meta_list})
+    print(f"OK daily rows={len(rec_d)} 15m rows={len(rec_15)}")
+    return 0 if len(rec_d) >= 20 and len(rec_15) >= 40 else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
