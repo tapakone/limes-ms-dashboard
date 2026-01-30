@@ -1,1 +1,1 @@
-{"symbol": "{'key': 'XAUUSD', 'yahoo': 'GC=F', 'name': 'Gold Futures'}", "interval": "15m", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "no 15m data", "generated_utc": "2026-01-30T15:55:11.115039+00:00"}}
+{"symbol": "{'key': 'XAUUSD', 'yahoo': 'GC=F', 'name': 'Gold Futures'}", "interval": "15m", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "no 15m data", "generated_utc": "2026-01-30T16:26:32.740137+00:00"}}
