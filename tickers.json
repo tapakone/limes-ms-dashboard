@@ -1,77 +1,25 @@
 {
   "tickers": [
-    {
-      "key": "XAUUSD",
-      "yahoo": "GC=F",
-      "name": "Gold Futures"
-    },
-    {
-      "key": "AGNC",
-      "yahoo": "AGNC"
-    },
-    {
-      "key": "JEPQ",
-      "yahoo": "JEPQ"
-    },
-    {
-      "key": "NVDA",
-      "yahoo": "NVDA"
-    },
-    {
-      "key": "SCHD",
-      "yahoo": "SCHD"
-    },
-    {
-      "key": "TSLA",
-      "yahoo": "TSLA"
-    },
-    {
-      "key": "GOOGL",
-      "yahoo": "GOOGL"
-    },
-    {
-      "key": "AMD",
-      "yahoo": "AMD"
-    },
-    {
-      "key": "JNJ",
-      "yahoo": "JNJ"
-    },
-    {
-      "key": "VOO",
-      "yahoo": "VOO"
-    },
-    {
-      "key": "QQQ",
-      "yahoo": "QQQ"
-    },
-    {
-      "key": "BTC-USD",
-      "yahoo": "BTC-USD"
-    },
-    {
-      "key": "ETH-USD",
-      "yahoo": "ETH-USD"
-    },
-    {
-      "key": "PTT.BK",
-      "yahoo": "PTT.BK"
-    },
-    {
-      "key": "CPALL.BK",
-      "yahoo": "CPALL.BK"
-    },
-    {
-      "key": "AOT.BK",
-      "yahoo": "AOT.BK"
-    },
-    {
-      "key": "ADVANC.BK",
-      "yahoo": "ADVANC.BK"
-    },
-    {
-      "key": "KBANK.BK",
-      "yahoo": "KBANK.BK"
-    }
-  ]
+    "JEPQ",
+    "AGNC",
+    "NVDA",
+    "SCHD",
+    "TSLA",
+    "GOOGL",
+    "AMD",
+    "JNJ",
+    "VOO",
+    "QQQ",
+    "BTC-USD",
+    "ETH-USD",
+    "XAUUSD"
+  ],
+  "aliases": {
+    "XAUUSD": "GC=F",
+    "GOLD": "GC=F",
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD",
+    "MAG7": "MAGS",
+    "MAGY": "MAGS"
+  }
 }
