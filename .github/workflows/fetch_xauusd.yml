@@ -31,6 +31,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+          git pull --rebase origin main || true
           git add data/*.json
           git commit -m "Update market data" || echo "No changes"
           git push
