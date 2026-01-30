@@ -4,126 +4,177 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LIMES MS — Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- UI overrides (safe to keep even if style.css exists) -->
+  <style>
+    /* Top-right Thai time */
+    .topRightInfo{
+      position:absolute; right:24px; top:18px;
+      color: rgba(233,226,212,.78);
+      font-size: 14px;
+      letter-spacing: .2px;
+      text-align:right;
+      pointer-events:none;
+    }
+    .topRightInfo .sub{ color: rgba(233,226,212,.5); font-size: 12px; margin-top: 2px; }
+
+    /* Bottom-right single status summary */
+    .bottomStatus{
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.38);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      min-width: 220px;
+      max-width: calc(100vw - 36px);
+    }
+    .bottomStatus .pill{
+      font-weight: 800;
+      letter-spacing: .6px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    .bottomStatus .meta{
+      display:flex; flex-direction:column; gap:2px;
+      min-width: 0;
+    }
+    .bottomStatus .title{
+      color: rgba(233,226,212,.9);
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 13px;
+    }
+    .bottomStatus .score{
+      color: rgba(233,226,212,.6);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .pill.buy{ background: rgba(25,110,70,.25); color: #7CFFB2; border-color: rgba(124,255,178,.22); }
+    .pill.watch{ background: rgba(163,113,33,.25); color: #FFD38A; border-color: rgba(255,211,138,.22); }
+    .pill.high{ background: rgba(150,35,42,.25); color: #FF9AA4; border-color: rgba(255,154,164,.22); }
+
+    /* Blink when HIGH RISK */
+    .blinkHigh{ animation: blinkHigh 1.0s infinite; }
+    @keyframes blinkHigh {
+      0%, 100% { box-shadow: 0 0 0 rgba(255,0,0,0); transform: translateY(0); }
+      50% { box-shadow: 0 0 18px rgba(255,65,85,.35); transform: translateY(-1px); }
+    }
+  </style>
 </head>
 <body>
   <div class="app">
-    <header class="topbar">
-      <div class="leftBrand">
-        <div class="brandTitle">
-          <span class="brandGold">LIMES MS</span>
-          <span class="brandDash">—</span>
-          <span id="assetTitle" class="brandGold">XAUUSD</span>
-        </div>
-        <div class="brandSub">Daily Close | Forecast vs Actual (+1D)</div>
+    <div class="header">
+      <div class="title">
+        <div class="h1">LIMES MS — XAUUSD</div>
+        <div class="h2">Daily Close | Forecast vs Actual (+1D)</div>
       </div>
 
-      <div class="rightTools">
-        <div class="assetPicker">
-          <input id="assetInput" list="assetList" placeholder="Type ticker (e.g., NVDA, GOOGL, BTC-USD)" autocomplete="off" />
-          <datalist id="assetList"></datalist>
-          <button id="loadBtn" class="btn small">Load</button>
-        </div>
-        <div id="topMsg" class="topMsg">—</div>
+      <div class="controls">
+        <input id="symbolInput" value="XAUUSD" autocomplete="off" spellcheck="false" />
+        <button id="btnLoad" class="btn">Load</button>
       </div>
-    </header>
 
-    <main class="layout">
-      <!-- LEFT: chart -->
-      <section class="panel chartPanel">
-        <div class="chartHeader">
-          <div class="legend">
-            <span class="lgItem"><span class="dot price"></span>Price</span>
-            <span class="lgItem"><span class="dot mid"></span>Phase / Mid (MA3)</span>
-            <span class="lgItem"><span class="dot band"></span>Upper / Lower (±2σ)</span>
-            <span class="lgItem"><span class="dot today"></span>Today (0)</span>
-          </div>
+      <!-- Thai time (top-right) -->
+      <div class="topRightInfo">
+        <div id="thaiTime">--</div>
+        <div id="statusTopRight" class="sub">Waiting for data…</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel chartPanel">
+        <div class="legendRow">
+          <div class="legendItem"><span class="dot dotPrice"></span> Price</div>
+          <div class="legendItem"><span class="dot dotMid"></span> Phase / Mid (MA3)</div>
+          <div class="legendItem"><span class="dot dotBand"></span> Upper / Lower (±2σ)</div>
+          <div class="legendItem"><span class="dot dotToday"></span> Today (0)</div>
         </div>
 
-        <div class="chartBox">
-          <canvas id="c" width="1120" height="560"></canvas>
-        </div>
+        <canvas id="chart"></canvas>
+      </div>
 
-        <div class="bottomLeft">
-          <div class="pill" id="dayRiskPill">▲ DAY RISK —</div>
-          <div class="ctaRow">
-            <button id="btnBuy" class="cta buy">BUY</button>
-            <button id="btnWatch" class="cta watch">WATCH</button>
-            <button id="btnHigh" class="cta high">HIGH RISK</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- RIGHT: state -->
-      <aside class="panel rightPanel">
-        <div class="statePanel">
-          <div class="sectionTitle">STATE</div>
-          <div id="stateBadge" class="stateBadge state-wait">--</div>
+      <div class="panel rightPanel">
+        <div class="box">
+          <div class="boxTitle">STATE</div>
+          <div id="stateBadge" class="stateBadge">—</div>
 
           <div class="kv">
             <div class="k">Day 0 ref (04:00 TH)</div>
-            <div class="v" id="day0ref">--</div>
+            <div class="v" id="refPrice">--</div>
 
             <div class="k">Latest (15m)</div>
             <div class="v" id="latest15">--</div>
 
             <div class="k">Forecast (+1D)</div>
-            <div class="v" id="forecast1d">--</div>
+            <div class="v" id="fc1d">--</div>
 
             <div class="k">Slope</div>
-            <div class="v" id="slopeDay">--</div>
+            <div class="v" id="slope">--</div>
 
             <div class="k">Human Risk Index</div>
-            <div class="v">
-              <span id="humanRiskVal">--</span> / 5
-            </div>
-          </div>
-
-          <div class="riskBarWrap">
-            <div class="riskBar">
-              <div id="humanRiskFill" class="riskFill"></div>
-            </div>
+            <div class="v" id="hri">-- / 5</div>
+            <div class="bar"><div id="hriBar" class="barFill" style="width:0%"></div></div>
           </div>
         </div>
 
-        <div class="dayRiskPanel">
-          <div class="sectionTitle">DAY RISK</div>
-
+        <div class="box">
+          <div class="boxTitle">DAY RISK</div>
           <div class="riskRow">
-            <div class="lab">D</div>
-            <div class="bar"><div id="barD" class="fill"></div></div>
-            <div class="val" id="valD">--</div>
-            <div class="arrow">↗</div>
+            <div class="label">D</div>
+            <div class="bar small"><div id="riskD" class="barFill" style="width:0%"></div></div>
+            <div class="val" id="riskDVal">--</div>
           </div>
-
           <div class="riskRow">
-            <div class="lab">2HR</div>
-            <div class="bar"><div id="bar2h" class="fill"></div></div>
-            <div class="val" id="val2h">--</div>
-            <div class="arrow">↘</div>
+            <div class="label">2HR</div>
+            <div class="bar small"><div id="risk2h" class="barFill" style="width:0%"></div></div>
+            <div class="val" id="risk2hVal">--</div>
           </div>
-
           <div class="riskRow">
-            <div class="lab">1HR</div>
-            <div class="bar"><div id="bar1h" class="fill"></div></div>
-            <div class="val" id="val1h">--</div>
-            <div class="arrow">↘</div>
+            <div class="label">1HR</div>
+            <div class="bar small"><div id="risk1h" class="barFill" style="width:0%"></div></div>
+            <div class="val" id="risk1hVal">--</div>
           </div>
         </div>
 
-        <div class="rightButtons">
-          <button class="cta buy" id="btnBuy2">BUY</button>
-          <button class="cta watch" id="btnWatch2">WATCH</button>
-          <button class="cta high" id="btnHigh2">HIGH RISK</button>
+        <div class="actions actionsRight">
+          <button id="btnBuy" class="action buy">BUY</button>
+          <button id="btnWatch" class="action watch">WATCH</button>
+          <button id="btnHigh" class="action high">HIGH RISK</button>
         </div>
 
-        <div class="footerNote">
-          Data update: every 15 min (GitHub Actions) • Source: Yahoo Finance via yfinance
-        </div>
-      </aside>
-    </main>
+        <div class="foot">Data update: every 15 min (GitHub Actions) · Source: Yahoo Finance via yfinance</div>
+      </div>
+    </div>
   </div>
 
-  <script src="script.js"></script>
+  <!-- Single bottom-right summary -->
+  <div id="bottomStatus" class="bottomStatus">
+    <div id="bottomPill" class="pill watch">WAITING</div>
+    <div class="meta">
+      <div id="bottomTitle" class="title">Waiting for data…</div>
+      <div id="bottomScore" class="score">--</div>
+    </div>
+  </div>
+
+  <script src="./script.js"></script>
 </body>
 </html>
