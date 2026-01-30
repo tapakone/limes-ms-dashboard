@@ -1,178 +1,167 @@
 [
   {
-    "symbol": "XAUUSD",
-    "name": "Gold Spot (XAU/USD)",
-    "type": "fx/commodity",
-    "market": "FX",
-    "aliases": [
-      "XAUUSD=X"
-    ],
-    "slug": "xauusd",
-    "yf": "XAUUSD=X"
-  },
-  {
-    "symbol": "NVDA",
-    "name": "NVIDIA",
+    "symbol": "ADVANC.BK",
+    "slug": "advanc_bk",
+    "yf": "ADVANC.BK",
+    "aliases": [],
+    "name": "Advanced Info Service",
     "type": "equity",
-    "market": "US",
-    "aliases": [],
-    "slug": "nvda",
-    "yf": "NVDA"
-  },
-  {
-    "symbol": "TSLA",
-    "name": "Tesla",
-    "type": "equity",
-    "market": "US",
-    "aliases": [],
-    "slug": "tsla",
-    "yf": "TSLA"
-  },
-  {
-    "symbol": "GOOGL",
-    "name": "Alphabet Class A",
-    "type": "equity",
-    "market": "US",
-    "aliases": [],
-    "slug": "googl",
-    "yf": "GOOGL"
-  },
-  {
-    "symbol": "AMD",
-    "name": "AMD",
-    "type": "equity",
-    "market": "US",
-    "aliases": [],
-    "slug": "amd",
-    "yf": "AMD"
-  },
-  {
-    "symbol": "JNJ",
-    "name": "Johnson & Johnson",
-    "type": "equity",
-    "market": "US",
-    "aliases": [],
-    "slug": "jnj",
-    "yf": "JNJ"
-  },
-  {
-    "symbol": "VOO",
-    "name": "Vanguard S&P 500 ETF",
-    "type": "etf",
-    "market": "US",
-    "aliases": [],
-    "slug": "voo",
-    "yf": "VOO"
-  },
-  {
-    "symbol": "QQQ",
-    "name": "Invesco QQQ ETF",
-    "type": "etf",
-    "market": "US",
-    "aliases": [],
-    "slug": "qqq",
-    "yf": "QQQ"
-  },
-  {
-    "symbol": "SCHD",
-    "name": "Schwab U.S. Dividend Equity ETF",
-    "type": "etf",
-    "market": "US",
-    "aliases": [],
-    "slug": "schd",
-    "yf": "SCHD"
-  },
-  {
-    "symbol": "JEPQ",
-    "name": "JPMorgan Nasdaq Equity Premium Income ETF",
-    "type": "etf",
-    "market": "US",
-    "aliases": [],
-    "slug": "jepq",
-    "yf": "JEPQ"
+    "market": "TH"
   },
   {
     "symbol": "AGNC",
+    "slug": "agnc",
+    "yf": "AGNC",
+    "aliases": [],
     "name": "AGNC Investment Corp",
     "type": "equity",
-    "market": "US",
+    "market": "US"
+  },
+  {
+    "symbol": "AMD",
+    "slug": "amd",
+    "yf": "AMD",
     "aliases": [],
-    "slug": "agnc",
-    "yf": "AGNC"
+    "name": "AMD",
+    "type": "equity",
+    "market": "US"
+  },
+  {
+    "symbol": "AOT.BK",
+    "slug": "aot_bk",
+    "yf": "AOT.BK",
+    "aliases": [],
+    "name": "Airports of Thailand",
+    "type": "equity",
+    "market": "TH"
+  },
+  {
+    "symbol": "BTC-USD",
+    "slug": "btc-usd",
+    "yf": "BTC-USD",
+    "aliases": [],
+    "name": "Bitcoin",
+    "type": "crypto",
+    "market": "CRYPTO"
+  },
+  {
+    "symbol": "CPALL.BK",
+    "slug": "cpall_bk",
+    "yf": "CPALL.BK",
+    "aliases": [],
+    "name": "CP ALL PCL",
+    "type": "equity",
+    "market": "TH"
+  },
+  {
+    "symbol": "ETH-USD",
+    "slug": "eth-usd",
+    "yf": "ETH-USD",
+    "aliases": [],
+    "name": "Ethereum",
+    "type": "crypto",
+    "market": "CRYPTO"
+  },
+  {
+    "symbol": "GOOGL",
+    "slug": "googl",
+    "yf": "GOOGL",
+    "aliases": [],
+    "name": "Alphabet Class A",
+    "type": "equity",
+    "market": "US"
+  },
+  {
+    "symbol": "JEPQ",
+    "slug": "jepq",
+    "yf": "JEPQ",
+    "aliases": [],
+    "name": "JPMorgan Nasdaq Equity Premium Income ETF",
+    "type": "etf",
+    "market": "US"
+  },
+  {
+    "symbol": "JNJ",
+    "slug": "jnj",
+    "yf": "JNJ",
+    "aliases": [],
+    "name": "Johnson & Johnson",
+    "type": "equity",
+    "market": "US"
+  },
+  {
+    "symbol": "KBANK.BK",
+    "slug": "kbank_bk",
+    "yf": "KBANK.BK",
+    "aliases": [],
+    "name": "Kasikornbank",
+    "type": "equity",
+    "market": "TH"
   },
   {
     "symbol": "MAGS",
-    "name": "Roundhill Magnificent Seven ETF",
-    "type": "etf",
-    "market": "US",
+    "slug": "mags",
+    "yf": "MAGS",
     "aliases": [
       "MAG7",
       "MAGY"
     ],
-    "slug": "mags",
-    "yf": "MAGS"
+    "name": "Roundhill Magnificent Seven ETF",
+    "type": "etf",
+    "market": "US"
+  },
+  {
+    "symbol": "NVDA",
+    "slug": "nvda",
+    "yf": "NVDA",
+    "aliases": [],
+    "name": "NVIDIA",
+    "type": "equity",
+    "market": "US"
   },
   {
     "symbol": "PTT.BK",
+    "slug": "ptt_bk",
+    "yf": "PTT.BK",
+    "aliases": [],
     "name": "PTT PCL",
     "type": "equity",
-    "market": "TH",
-    "aliases": [],
-    "slug": "ptt_bk",
-    "yf": "PTT.BK"
+    "market": "TH"
   },
   {
-    "symbol": "CPALL.BK",
-    "name": "CP ALL PCL",
+    "symbol": "QQQ",
+    "slug": "qqq",
+    "yf": "QQQ",
+    "aliases": [],
+    "name": "Invesco QQQ ETF",
+    "type": "etf",
+    "market": "US"
+  },
+  {
+    "symbol": "SCHD",
+    "slug": "schd",
+    "yf": "SCHD",
+    "aliases": [],
+    "name": "Schwab U.S. Dividend Equity ETF",
+    "type": "etf",
+    "market": "US"
+  },
+  {
+    "symbol": "TSLA",
+    "slug": "tsla",
+    "yf": "TSLA",
+    "aliases": [],
+    "name": "Tesla",
     "type": "equity",
-    "market": "TH",
-    "aliases": [],
-    "slug": "cpall_bk",
-    "yf": "CPALL.BK"
+    "market": "US"
   },
   {
-    "symbol": "AOT.BK",
-    "name": "Airports of Thailand",
-    "type": "equity",
-    "market": "TH",
+    "symbol": "VOO",
+    "slug": "voo",
+    "yf": "VOO",
     "aliases": [],
-    "slug": "aot_bk",
-    "yf": "AOT.BK"
-  },
-  {
-    "symbol": "ADVANC.BK",
-    "name": "Advanced Info Service",
-    "type": "equity",
-    "market": "TH",
-    "aliases": [],
-    "slug": "advanc_bk",
-    "yf": "ADVANC.BK"
-  },
-  {
-    "symbol": "KBANK.BK",
-    "name": "Kasikornbank",
-    "type": "equity",
-    "market": "TH",
-    "aliases": [],
-    "slug": "kbank_bk",
-    "yf": "KBANK.BK"
-  },
-  {
-    "symbol": "BTC-USD",
-    "name": "Bitcoin",
-    "type": "crypto",
-    "market": "CRYPTO",
-    "aliases": [],
-    "slug": "btc-usd",
-    "yf": "BTC-USD"
-  },
-  {
-    "symbol": "ETH-USD",
-    "name": "Ethereum",
-    "type": "crypto",
-    "market": "CRYPTO",
-    "aliases": [],
-    "slug": "eth-usd",
-    "yf": "ETH-USD"
+    "name": "Vanguard S&P 500 ETF",
+    "type": "etf",
+    "market": "US"
   }
 ]

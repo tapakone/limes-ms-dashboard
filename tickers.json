@@ -1,24 +1,24 @@
 {
   "symbols": [
-    "XAUUSD",
-    "NVDA",
-    "TSLA",
-    "GOOGL",
+    "ADVANC.BK",
+    "AGNC",
     "AMD",
+    "AOT.BK",
+    "BTC-USD",
+    "CPALL.BK",
+    "ETH-USD",
+    "GOOGL",
+    "JEPQ",
     "JNJ",
-    "VOO",
+    "KBANK.BK",
+    "MAGS",
+    "NVDA",
+    "PTT.BK",
     "QQQ",
     "SCHD",
-    "JEPQ",
-    "AGNC",
-    "MAGS",
-    "PTT.BK",
-    "CPALL.BK",
-    "AOT.BK",
-    "ADVANC.BK",
-    "KBANK.BK",
-    "BTC-USD",
-    "ETH-USD"
+    "TSLA",
+    "VOO",
+    "XAUUSD"
   ],
   "aliases": {
     "MAG7": "MAGS",
@@ -26,5 +26,6 @@
   },
   "yf": {
     "XAUUSD": "XAUUSD=X"
-  }
+  },
+  "updated_utc": "2026-01-30T11:57:23.362831Z"
 }
