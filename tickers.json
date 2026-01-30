@@ -1,23 +1,29 @@
 {
   "tickers": [
-    "XAUUSD",
-    "AGNC",
-    "JEPQ",
-    "NVDA",
-    "SCHD",
-    "TSLA",
-    "GOOGL",
-    "AMD",
-    "JNJ",
-    "VOO",
-    "QQQ",
-    "BTC-USD",
-    "ETH-USD",
+    {
+      "key": "XAUUSD",
+      "yahoo": "GC=F",
+      "name": "Gold Futures"
+    },
 
-    "PTT.BK",
-    "CPALL.BK",
-    "AOT.BK",
-    "ADVANC.BK",
-    "KBANK.BK"
+    { "key": "AGNC", "yahoo": "AGNC" },
+    { "key": "JEPQ", "yahoo": "JEPQ" },
+    { "key": "NVDA", "yahoo": "NVDA" },
+    { "key": "SCHD", "yahoo": "SCHD" },
+    { "key": "TSLA", "yahoo": "TSLA" },
+    { "key": "GOOGL", "yahoo": "GOOGL" },
+    { "key": "AMD", "yahoo": "AMD" },
+    { "key": "JNJ", "yahoo": "JNJ" },
+    { "key": "VOO", "yahoo": "VOO" },
+    { "key": "QQQ", "yahoo": "QQQ" },
+
+    { "key": "BTC-USD", "yahoo": "BTC-USD" },
+    { "key": "ETH-USD", "yahoo": "ETH-USD" },
+
+    { "key": "PTT.BK", "yahoo": "PTT.BK" },
+    { "key": "CPALL.BK", "yahoo": "CPALL.BK" },
+    { "key": "AOT.BK", "yahoo": "AOT.BK" },
+    { "key": "ADVANC.BK", "yahoo": "ADVANC.BK" },
+    { "key": "KBANK.BK", "yahoo": "KBANK.BK" }
   ]
 }
