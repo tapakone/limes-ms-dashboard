@@ -1,1 +1,1 @@
-{"symbol": "CPALL.BK", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:24:53.212750+00:00"}}
+{"symbol": "CPALL.BK", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T11:43:40.902725+00:00"}}

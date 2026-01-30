@@ -1,1 +1,1 @@
-{"symbol": "PTT.BK", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:24:52.988579+00:00"}}
+{"symbol": "PTT.BK", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T11:43:40.624789+00:00"}}

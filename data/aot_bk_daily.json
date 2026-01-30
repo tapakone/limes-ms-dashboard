@@ -1,1 +1,1 @@
-{"symbol": "AOT.BK", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T10:24:53.487908+00:00"}}
+{"symbol": "AOT.BK", "interval": "1d", "timestamps": [], "close": [], "meta": {"ok": false, "reason": "exception: 'DataFrame' object has no attribute 'to_frame'", "generated_utc": "2026-01-30T11:43:41.285897+00:00"}}
