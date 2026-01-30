@@ -2,32 +2,25 @@ name: Fetch Assets Data
 
 on:
   workflow_dispatch:
-    inputs:
-      symbol:
-        description: "Optional: fetch only this symbol (e.g., NVDA, BTC-USD, PTT.BK). Leave empty to use tickers.json"
-        required: false
-        default: ""
   schedule:
-    - cron: "*/15 * * * *"   # ทุก 15 นาที (อยากให้เบากว่านี้เปลี่ยนเป็น */30 หรือ 0 * * * *)
-  push:
-    paths:
-      - "tickers.json"
-      - "fetch_assets.py"
-      - ".github/workflows/fetch_assets.yml"
+    - cron: "*/15 * * * *"   # ทุก 15 นาที
 
 permissions:
   contents: write
 
 concurrency:
-  group: fetch-assets
+  group: fetch-assets-main
   cancel-in-progress: true
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,27 +30,25 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas numpy
+          pip install yfinance pandas
 
       - name: Fetch data
         run: |
-          if [ -n "${{ inputs.symbol }}" ]; then
-            python fetch_assets.py "${{ inputs.symbol }}"
-          else
-            python fetch_assets.py
-          fi
+          python fetch_assets.py
 
-      - name: Commit and push data
+      - name: Commit and push data (safe rebase)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add data/*.json || true
-
+          git add -A
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "No changes to commit"
             exit 0
           fi
 
           git commit -m "Update market data [skip ci]"
-          git push
+
+          # ดึงของล่าสุดก่อน แล้วค่อย push (กัน fetch-first)
+          git pull --rebase origin main
+          git push origin main
