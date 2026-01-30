@@ -1,180 +1,251 @@
 <!doctype html>
-<html lang="en">
+<html lang="th">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LIMES MS — Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css" />
+
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <!-- UI overrides (safe to keep even if style.css exists) -->
+  <!-- ✅ Override เฉพาะที่จำเป็น เพื่อแก้ “แนวตั้งสูงเกิน / แกนนอนล้นจอ / กล่องสถานะขวาล่าง” -->
   <style>
-    /* Top-right Thai time */
-    .topRightInfo{
-      position:absolute; right:24px; top:18px;
-      color: rgba(233,226,212,.78);
-      font-size: 14px;
-      letter-spacing: .2px;
-      text-align:right;
-      pointer-events:none;
-    }
-    .topRightInfo .sub{ color: rgba(233,226,212,.5); font-size: 12px; margin-top: 2px; }
+    html, body { overflow-x: hidden; }
+    .wrap { max-width: 1200px; margin: 0 auto; }
+    .grid { overflow-x: hidden; }
 
-    /* Bottom-right single status summary */
-    .bottomStatus{
+    /* แก้ปัญหาหน้าจอแนวตั้งสูงเกินไป: จำกัดความสูงกราฟ */
+    .chart-card .canvas-wrap{
+      width: 100%;
+      height: min(56vh, 520px);   /* ✅ จุดสำคัญ: ไม่ให้สูงเว่อร์ */
+      max-height: 520px;
+      overflow: hidden;
+    }
+    .chart-card canvas{
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    /* แถวปุ่มล่างเดิมในกราฟ: ซ่อนไป (เราจะใช้กล่องสรุปขวาล่างแทน) */
+    .chart-card .bottom-row{ display:none !important; }
+
+    /* กล่องสรุปสถานะ ขวาล่าง */
+    .status-toast{
       position: fixed;
-      right: 18px;
-      bottom: 18px;
-      z-index: 50;
+      right: 16px;
+      bottom: 16px;
+      z-index: 9999;
       display: flex;
-      align-items: center;
       gap: 10px;
+      align-items: center;
       padding: 12px 14px;
       border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.38);
       backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      box-shadow: 0 10px 30px rgba(0,0,0,.35);
-      min-width: 220px;
-      max-width: calc(100vw - 36px);
+      background: rgba(10, 12, 18, .70);
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+      max-width: min(520px, calc(100vw - 32px));
     }
-    .bottomStatus .pill{
-      font-weight: 800;
-      letter-spacing: .6px;
-      padding: 7px 12px;
+    .toast-pill{
+      min-width: 120px;
+      text-align: center;
+      padding: 10px 14px;
       border-radius: 999px;
-      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .3px;
       border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
     }
-    .bottomStatus .meta{
-      display:flex; flex-direction:column; gap:2px;
-      min-width: 0;
+    .toast-meta{
+      display:flex;
+      flex-direction: column;
+      line-height: 1.15;
     }
-    .bottomStatus .title{
-      color: rgba(233,226,212,.9);
-      font-weight: 700;
+    .toast-title{
+      font-weight: 800;
+      opacity: .95;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      font-size: 13px;
+      max-width: 320px;
     }
-    .bottomStatus .score{
-      color: rgba(233,226,212,.6);
+    .toast-sub{
       font-size: 12px;
-      white-space: nowrap;
+      opacity: .75;
     }
 
-    .pill.buy{ background: rgba(25,110,70,.25); color: #7CFFB2; border-color: rgba(124,255,178,.22); }
-    .pill.watch{ background: rgba(163,113,33,.25); color: #FFD38A; border-color: rgba(255,211,138,.22); }
-    .pill.high{ background: rgba(150,35,42,.25); color: #FF9AA4; border-color: rgba(255,154,164,.22); }
+    /* สีตามสถานะ */
+    .toast-buy{ color: #3ddc97; }
+    .toast-watch{ color: #f5b04c; }
+    .toast-risk{ color: #ff4d5a; }
 
-    /* Blink when HIGH RISK */
-    .blinkHigh{ animation: blinkHigh 1.0s infinite; }
-    @keyframes blinkHigh {
-      0%, 100% { box-shadow: 0 0 0 rgba(255,0,0,0); transform: translateY(0); }
-      50% { box-shadow: 0 0 18px rgba(255,65,85,.35); transform: translateY(-1px); }
+    /* กระพริบแดงเมื่อ HIGH RISK */
+    @keyframes pulseRed {
+      0%   { box-shadow: 0 0 0 rgba(255,77,90,.0); }
+      50%  { box-shadow: 0 0 22px rgba(255,77,90,.35); }
+      100% { box-shadow: 0 0 0 rgba(255,77,90,.0); }
+    }
+    .blink-red{
+      animation: pulseRed .85s infinite;
+      border-color: rgba(255,77,90,.35) !important;
+    }
+
+    /* Topbar input */
+    .symbolbar{
+      display:flex;
+      gap: 10px;
+      align-items: center;
+      margin-left: auto;
+    }
+    .symbolbar input{
+      width: min(260px, 40vw);
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: #fff;
+      outline: none;
+    }
+    .symbolbar button{
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.10);
+      color:#fff;
+      font-weight: 700;
     }
   </style>
 </head>
+
 <body>
-  <div class="app">
-    <div class="header">
+  <div class="wrap">
+    <header class="topbar">
       <div class="title">
-        <div class="h1">LIMES MS — XAUUSD</div>
-        <div class="h2">Daily Close | Forecast vs Actual (+1D)</div>
+        <div class="brand" id="brandTitle">LIMES MS — Dashboard</div>
+        <div class="subtitle" id="subTitle">Daily Close | Forecast vs Actual (+1D)</div>
       </div>
 
-      <div class="controls">
-        <input id="symbolInput" value="XAUUSD" autocomplete="off" spellcheck="false" />
-        <button id="btnLoad" class="btn">Load</button>
+      <!-- ✅ เพิ่มช่องกรอกสัญลักษณ์ + autocomplete -->
+      <div class="symbolbar">
+        <input id="symbolInput" list="symbolList" placeholder="พิมพ์สัญลักษณ์ เช่น XAUUSD, NVDA, PTT.BK, BTC-USD" autocomplete="off" />
+        <datalist id="symbolList">
+          <option value="XAUUSD"></option>
+          <option value="GC=F"></option>
+
+          <option value="AGNC"></option>
+          <option value="JEPQ"></option>
+          <option value="NVDA"></option>
+          <option value="SCHD"></option>
+          <option value="TSLA"></option>
+          <option value="GOOGL"></option>
+          <option value="AMD"></option>
+          <option value="JNJ"></option>
+          <option value="VOO"></option>
+          <option value="QQQ"></option>
+
+          <option value="BTC-USD"></option>
+          <option value="ETH-USD"></option>
+
+          <!-- ตัวอย่างหุ้นไทย (Yahoo ใช้ .BK) -->
+          <option value="PTT.BK"></option>
+          <option value="CPALL.BK"></option>
+          <option value="ADVANC.BK"></option>
+          <option value="AOT.BK"></option>
+        </datalist>
+        <button id="btnLoad">Load</button>
       </div>
 
-      <!-- Thai time (top-right) -->
-      <div class="topRightInfo">
-        <div id="thaiTime">--</div>
-        <div id="statusTopRight" class="sub">Waiting for data…</div>
-      </div>
-    </div>
+      <!-- ✅ เวลาไทยมุมขวาบน -->
+      <div class="stamp" id="stamp">--</div>
+    </header>
 
-    <div class="grid">
-      <div class="panel chartPanel">
-        <div class="legendRow">
-          <div class="legendItem"><span class="dot dotPrice"></span> Price</div>
-          <div class="legendItem"><span class="dot dotMid"></span> Phase / Mid (MA3)</div>
-          <div class="legendItem"><span class="dot dotBand"></span> Upper / Lower (±2σ)</div>
-          <div class="legendItem"><span class="dot dotToday"></span> Today (0)</div>
+    <main class="grid">
+      <section class="card chart-card">
+        <div class="chart-head">
+          <div class="legend">
+            <span class="dot price"></span> Price
+            <span class="dot mid"></span> Phase / Mid (MA3)
+            <span class="dot band"></span> Upper / Lower (±2σ)
+            <span class="dot today"></span> Today (0)
+          </div>
         </div>
 
-        <canvas id="chart"></canvas>
-      </div>
+        <div class="canvas-wrap">
+          <canvas id="chart"></canvas>
+        </div>
+      </section>
 
-      <div class="panel rightPanel">
-        <div class="box">
-          <div class="boxTitle">STATE</div>
-          <div id="stateBadge" class="stateBadge">—</div>
+      <aside class="card side-card">
+        <div class="side-section">
+          <div class="side-label">STATE</div>
+          <div class="state-badge" id="stateBadge">--</div>
 
           <div class="kv">
-            <div class="k">Day 0 ref (04:00 TH)</div>
-            <div class="v" id="refPrice">--</div>
+            <div class="k">Day 0 ref (04:00 TH)</div><div class="v" id="day0">--</div>
+            <div class="k">Latest (15m)</div><div class="v" id="latest">--</div>
+          </div>
 
-            <div class="k">Latest (15m)</div>
-            <div class="v" id="latest15">--</div>
+          <div class="hr"></div>
 
-            <div class="k">Forecast (+1D)</div>
-            <div class="v" id="fc1d">--</div>
+          <div class="kv">
+            <div class="k">Forecast (+1D)</div><div class="v" id="pred">--</div>
+            <div class="k">Slope</div><div class="v" id="slope">--</div>
+          </div>
 
-            <div class="k">Slope</div>
-            <div class="v" id="slope">--</div>
+          <div class="hr"></div>
 
-            <div class="k">Human Risk Index</div>
-            <div class="v" id="hri">-- / 5</div>
-            <div class="bar"><div id="hriBar" class="barFill" style="width:0%"></div></div>
+          <div class="kv">
+            <div class="k">Human Risk Index</div><div class="v"><span id="humanRisk">--</span> / 5</div>
+          </div>
+
+          <div class="barwrap"><div class="bar" id="humanBar"><div class="fill"></div></div></div>
+        </div>
+
+        <div class="side-section">
+          <div class="risk-row">
+            <div class="risk-title">DAY RISK</div>
+            <div class="risk-right" id="dayState">--</div>
+          </div>
+
+          <div class="riskline">
+            <div class="riskcode">D</div>
+            <div class="riskbar"><div class="fill" id="dFill"></div></div>
+            <div class="riskscore" id="dScore">--</div>
+            <div class="arrow" id="dArrow">→</div>
+          </div>
+
+          <div class="riskline">
+            <div class="riskcode">2HR</div>
+            <div class="riskbar"><div class="fill" id="h2Fill"></div></div>
+            <div class="riskscore" id="h2Score">--</div>
+            <div class="arrow" id="h2Arrow">→</div>
+          </div>
+
+          <div class="riskline">
+            <div class="riskcode">1HR</div>
+            <div class="riskbar"><div class="fill" id="h1Fill"></div></div>
+            <div class="riskscore" id="h1Score">--</div>
+            <div class="arrow" id="h1Arrow">→</div>
           </div>
         </div>
 
-        <div class="box">
-          <div class="boxTitle">DAY RISK</div>
-          <div class="riskRow">
-            <div class="label">D</div>
-            <div class="bar small"><div id="riskD" class="barFill" style="width:0%"></div></div>
-            <div class="val" id="riskDVal">--</div>
-          </div>
-          <div class="riskRow">
-            <div class="label">2HR</div>
-            <div class="bar small"><div id="risk2h" class="barFill" style="width:0%"></div></div>
-            <div class="val" id="risk2hVal">--</div>
-          </div>
-          <div class="riskRow">
-            <div class="label">1HR</div>
-            <div class="bar small"><div id="risk1h" class="barFill" style="width:0%"></div></div>
-            <div class="val" id="risk1hVal">--</div>
-          </div>
+        <div class="note">
+          Data update: every 15 min (GitHub Actions) • Source: Yahoo Finance via yfinance
         </div>
+      </aside>
+    </main>
+  </div>
 
-        <div class="actions actionsRight">
-          <button id="btnBuy" class="action buy">BUY</button>
-          <button id="btnWatch" class="action watch">WATCH</button>
-          <button id="btnHigh" class="action high">HIGH RISK</button>
-        </div>
-
-        <div class="foot">Data update: every 15 min (GitHub Actions) · Source: Yahoo Finance via yfinance</div>
-      </div>
+  <!-- ✅ กล่องสรุปสถานะ “อันเดียว” ขวาล่าง -->
+  <div class="status-toast" id="statusToast" style="display:none">
+    <div class="toast-pill" id="toastPill">WATCH</div>
+    <div class="toast-meta">
+      <div class="toast-title" id="toastTitle">—</div>
+      <div class="toast-sub" id="toastSub">Risk score: — / 5</div>
     </div>
   </div>
 
-  <!-- Single bottom-right summary -->
-  <div id="bottomStatus" class="bottomStatus">
-    <div id="bottomPill" class="pill watch">WAITING</div>
-    <div class="meta">
-      <div id="bottomTitle" class="title">Waiting for data…</div>
-      <div id="bottomScore" class="score">--</div>
-    </div>
-  </div>
-
-  <script src="./script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
